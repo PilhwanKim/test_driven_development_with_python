@@ -9,7 +9,7 @@
 
 ## 실전 - Django를 이용한 애플리케이션 개발
 
-[functional_test.py](./01/functional_test.py)
+[01/functional_test.py](./01/functional_test.py)
 
 - 첫 단계 : Django가 제대로 설치되었는지 확인
   - Django 개발 서버 가동
@@ -56,8 +56,9 @@ selenium.common.exceptions.WebDriverException: Message: 'geckodriver' executable
 [02/functional_test.py](./02/functional_test.py)
 
 검색을 통해 드라이버를 인스톨하고 실행하는 법을 찾았다.
-* [[DjangoTDDStudy] #01: 개발환경 세팅하기](https://beomi.github.io/2016/12/27/Django-TDD-Study-01-Setting-DevEnviron/)
-* [크롬 드라이버 다운로드](https://sites.google.com/a/chromium.org/chromedriver/home)
+
+- [[DjangoTDDStudy] #01: 개발환경 세팅하기](https://beomi.github.io/2016/12/27/Django-TDD-Study-01-Setting-DevEnviron/)
+- [크롬 드라이버 다운로드](https://sites.google.com/a/chromium.org/chromedriver/home)
 
 크롬은 실행이 잘 되었다. 다만 장고 웹서버가 띄워지지 않아서 웹 화면은 띄워지지 않았다.
 
@@ -105,6 +106,7 @@ Quit the server with CONTROL-C.
 ```sh
 python functional_test.py
 ```
+
 ![테스트 성공](./ch01-02.png)
 
 사실 직접 크롬을 띄우고 localhost:8000 을 입력한 것을 자동화 한 것 밖에는 없지만 저자가 이 장을 이렇게 장황하게 만든건 의미가 있다고 본다.
