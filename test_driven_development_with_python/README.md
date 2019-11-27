@@ -31,6 +31,8 @@ pip install -r requirements.txt
 
 [1장 기능 테스트를 이용한 Django 설치](./ch01_Getting_Django_Set_Up_Using_a_Functional_Test/README.md)
 
+[2장 unittest 모듈을 이용한 기능 테스트 확장](./ch02_Extending_Our_Functional_Test_Using_the_unittest_Module/README.md)
+
 ## 2부 웹 개발 핵심편
 
 ## 3부 고급편
