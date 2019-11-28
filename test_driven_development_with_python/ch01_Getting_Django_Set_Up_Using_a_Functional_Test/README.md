@@ -9,7 +9,7 @@
 
 ## 실전 - Django를 이용한 애플리케이션 개발
 
-[01/functional_test.py](./01/functional_test.py)
+[첫번째 예제 보기](./01-01/functional_test.py)
 
 - 첫 단계 : Django가 제대로 설치되었는지 확인
   - Django 개발 서버 가동
@@ -53,7 +53,7 @@ selenium.common.exceptions.WebDriverException: Message: 'geckodriver' executable
 
 나는 파이어 폭스를 쓰긴(설치하긴) 싫으므로 예제를 변경했다.
 
-[02/functional_test.py](./02/functional_test.py)
+[변경한 테스트 예제](./01-02/functional_test.py)
 
 검색을 통해 드라이버를 인스톨하고 실행하는 법을 찾았다.
 
