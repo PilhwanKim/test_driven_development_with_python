@@ -42,7 +42,11 @@ $ python manage.py startapp lists
 
 ## Django에서의 단위 테스트
 
-TDD 주기 - 선 실패 -> 테스트를 통과할 코드 작성 -> 후 통과 -> 새 테스트 코드 작성 -> 선 실패..(계속 반복)
+### TDD 주기
+
+선 실패 -> 테스트를 통과할 코드 작성 -> 후 통과 -> 새 테스트 코드 작성 -> 선 실패..(계속 반복)
+
+### django.test.TestCase
 
 Django는 기본 TestCase class를 확장한 django.test.TestCase 클래스를 기본 단위 테스트로 사용하도록 권하고 있다.
 django 프로젝트에 맞는 여러 확장 기능들이 있다.
