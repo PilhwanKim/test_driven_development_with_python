@@ -26,7 +26,7 @@ $ python manage.py startapp lists
 | 종류| 단위 테스트 | 기능 테스트 |
 | ------------- |:-------------:|:-----:|
 | 관점 | 프로그래머 관점 | 사용자 관점 |
-| 목표 | 애플리케이션 외부 | 애플리케이션 내부 |
+| 목표 | 애플리케이션 내부 | 애플리케이션 외부 |
 | 레이어 | 하위 레벨 | 상위 레벨 |
 
 ### 테스트 작업 순서
@@ -39,3 +39,35 @@ $ python manage.py startapp lists
 
 즉 상위단(기능테스트) 를 먼저 작성후에 그 하위단(단위 테스트)을 잘게 쪼게서 테스트 함을 알수 있다.
 번거로워 보일 수 있으나, 실질적인 설계와 이후에 검증할수 있는 자동화된 툴까지 만들어지기 때문에 합리적인 프로세스인거 같다.
+
+## Django에서의 단위 테스트
+
+TDD 주기 - 선 실패 -> 테스트를 통과할 코드 작성 -> 후 통과 -> 새 테스트 코드 작성 -> 선 실패..(계속 반복)
+
+Django는 기본 TestCase class를 확장한 django.test.TestCase 클래스를 기본 단위 테스트로 사용하도록 권하고 있다.
+django 프로젝트에 맞는 여러 확장 기능들이 있다.
+그 중에 manage.py 에서 test 커맨드로 전체 testcase를 실행하는 기능이 포함되어 있다.
+고의적인 실패 테스트를 작성하여 이를 확인해 보자.
+
+[lists/tests.py](./03-02/superlist/../superlists/lists/tests.py)
+
+```sh
+$ python manage.py test
+
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+F
+======================================================================
+FAIL: test_bad_maths (lists.tests.SmokeTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "workspace/superlists/lists/tests.py", line 7, in test_bad_maths
+    self.assertEqual(1 + 1, 3)
+AssertionError: 2 != 3
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+```
