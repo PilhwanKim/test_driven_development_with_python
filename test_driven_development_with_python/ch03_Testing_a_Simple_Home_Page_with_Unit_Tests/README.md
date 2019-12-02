@@ -4,7 +4,7 @@
 
 본격적인 To-Do 웹 에플리케이션 개발을 위해 단위 테스트를 만들어본다.
 
-## 첫 Django 애플리케이션과 첫 단위 테스트
+## 첫 Django 애플리케이션과 첫 단위 테스트(예제 : 03-01)
 
 - Django 는 1개 프로젝트에 n개 app으록 구성되어 있다.
 - 이것은 다른 프로젝트에서도 동일한 앱을 사용가능하도록 app 단위로 재사용을 가능하게 하기 위한 것이다.
@@ -40,20 +40,20 @@ $ python manage.py startapp lists
 즉 상위단(기능테스트) 를 먼저 작성후에 그 하위단(단위 테스트)을 잘게 쪼게서 테스트 함을 알수 있다.
 번거로워 보일 수 있으나, 실질적인 설계와 이후에 검증할수 있는 자동화된 툴까지 만들어지기 때문에 합리적인 프로세스인거 같다.
 
-## Django에서의 단위 테스트
+## Django에서의 단위 테스트(예제 : 03-02)
 
 ### TDD 주기
 
 선 실패 -> 테스트를 통과할 코드 작성 -> 후 통과 -> 새 테스트 코드 작성 -> 선 실패..(계속 반복)
 
-### django.test.TestCase
+### django.test.TestCase 클래스
 
 Django는 기본 TestCase class를 확장한 django.test.TestCase 클래스를 기본 단위 테스트로 사용하도록 권하고 있다.
 django 프로젝트에 맞는 여러 확장 기능들이 있다.
 그 중에 manage.py 에서 test 커맨드로 전체 testcase를 실행하는 기능이 포함되어 있다.
 고의적인 실패 테스트를 작성하여 이를 확인해 보자.
 
-[lists/tests.py](./03-02/superlist/../superlists/lists/tests.py)
+[lists/tests.py](./03-02/superlists/lists/tests.py)
 
 ```sh
 $ python manage.py test
@@ -75,3 +75,97 @@ Ran 1 test in 0.001s
 FAILED (failures=1)
 Destroying test database for alias 'default'...
 ```
+
+## Django의 MVC, URL, 뷰 함수(예제 : 03-03)
+
+Django는 **대체로** MVC(Model-View-Cotroller) 패턴을 따름
+
+이 MVC 패턴을 차용하여 Django는
+  - Model(Data) - Model
+  - View - Template
+  - Controller - View
+
+라고 표현하여 MTV(model-template-view)패턴이라고 부름
+
+### HTTP 요청 Django 의 처리 흐름
+
+![Django의 처리 흐름](./ch03-02.png)
+
+저기 중에 http client - view 사이에서 일어나는 일을 좀더 자세히 설명하면 이렇다.
+
+1. 특정 URL에 대한 HTTP 요청 받음
+2. 특정 규칙을 이용해서 해당 요청에 어떤 뷰 함수를 실행할 지 결정
+3. 뷰 기능 요청을 처리하고 HTTP 응답을 반환
+
+따라서 우리가 테스트 할 2가지
+
+1. URL의 루트("/")를 해석해서 특정 뷰 기능에 매칭시킬 수 있는가?
+2. 이 뷰 기능이 특정 HTML을 반환하게 해서 기능 테스트를 통과하는가?
+
+[첫 번째 테스트 코드](03-03/superlists/lists/tests.py)
+
+```sh
+$ python manage.py test
+System check identified no issues (0 silenced).
+E
+======================================================================
+ERROR: lists.tests (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: lists.tests
+Traceback (most recent call last):
+  File "/Users/pilhwankim/.pyenv/versions/3.7.1/lib/python3.7/unittest/loader.py", line 434, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Users/pilhwankim/.pyenv/versions/3.7.1/lib/python3.7/unittest/loader.py", line 375, in _get_module_from_name
+    __import__(name)
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch03_Testing_a_Simple_Home_Page_with_Unit_Tests/03-03/superlists/lists/tests.py", line 3, in <module>
+    from lists.views import home_page
+ImportError: cannot import name 'home_page' from 'lists.views' (/Users/pilhwankim/Github/books/test_driven_development_with_python/ch03_Testing_a_Simple_Home_Page_with_Unit_Tests/03-03/superlists/lists/views.py)
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (errors=1)
+```
+
+예상하던 대로 에러가 발생한다.
+대략 에러의 내용은 veiws 의 home_page 라는 존재하지 않는 것을 임포트 하려고 했기 때문에 발생했다.
+예측된 실패이고 TDD 관점으로는 거쳐가야 할 첫 과정이다.
+
+## 마침내 실질적인 애플리케이션을 작성한다(예제 : 03-04)
+
+실패 테스트를 해결해 보자. 한번에 하나씩! 일단 import 에러를 해결한다.
+
+[view 구현 코드](03-04/superlists/lists/views.py)
+
+너무 단순하고 허무한 코드이기 한데, 저자의 의도는 이런거 같다.
+
+***한 번에 한 가지의 당면한 문제를 해결해라!***
+
+다음과 같이 구현하고 다시 테스트를 돌려보면 다른 에러가 발생한다.
+
+```sh
+python manage.py test
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+E
+======================================================================
+ERROR: test_root_url_resolves_to_home_page_view (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch03_Testing_a_Simple_Home_Page_with_Unit_Tests/03-04/superlists/lists/tests.py", line 8, in test_root_url_resolves_to_home_page_view
+    found = resolve('/')
+  File "/Users/pilhwankim/.pyenv/versions/tdd-with-python-env/lib/python3.7/site-packages/django/urls/base.py", line 24, in resolve
+    return get_resolver(urlconf).resolve(path)
+  File "/Users/pilhwankim/.pyenv/versions/tdd-with-python-env/lib/python3.7/site-packages/django/urls/resolvers.py", line 567, in resolve
+    raise Resolver404({'tried': tried, 'path': new_path})
+django.urls.exceptions.Resolver404: {'tried': [[<URLResolver <URLPattern list> (admin:admin) 'admin/'>]], 'path': ''}
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+FAILED (errors=1)
+Destroying test database for alias 'default'...
+```
+
+## URL과 뷰 함수 맵핑(예제 : 03-05)
