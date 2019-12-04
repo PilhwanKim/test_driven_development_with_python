@@ -169,3 +169,61 @@ Destroying test database for alias 'default'...
 ```
 
 ## URL과 뷰 함수 맵핑(예제 : 03-05)
+
+- Django 는 urls.py 에서 URL과 view 를 매핑할지 정의
+- superlists(project root)/superlists/urls.py - 전체 사이트 대상으로 하는 메인 urls.py
+
+참고 사항) 2판 기준 책이 django 1.7 기준이다. 굳이 예전버전을 쓸 필요는 없으므로 최신의 2.2 버전으로 최대한 예제를 따라 진행한다.
+크게 바뀐 내용은 3가지 정도 요약됨
+
+1. django.conf.urls.url 로 매핑하던 내용이 django.urls.path 로 표준적인 설정이 바뀜(이전것도 사용가능하나. django 에서는 path를 기본으로 함)
+2. 따라서 url pattern 입력이 정규식 표현에서 path convert 방식으로 바뀜
+3. 문자열로 view 경로 설정 방식 제외. 직접 view 를 import 함
+
+책의 내용과 비슷하게 아래와 같이 urls.py 를 변경해 진행해보면
+
+```py
+from django.contrib import admin
+from django.urls import path
+import lists
+
+urlpatterns = [
+    # path('admin/', admin.site.urls),
+    path('', lists.views.home_page, name='home'),
+]
+```
+
+```sh
+$ python manage.py test
+Creating test database for alias 'default'...
+Destroying test database for alias 'default'...
+Traceback (most recent call last):
+(...생략...)
+  File "/test_driven_development_with_python/ch03_Testing_a_Simple_Home_Page_with_Unit_Tests/03-05/superlists/superlists/urls.py", line 22, in <module>
+    path('/', lists.views.home_page, name='home'),
+  File "~/.pyenv/versions/tdd-with-python-env/lib/python3.7/site-packages/django/urls/conf.py", line 73, in _path
+    raise TypeError('view must be a callable or a list/tuple in the case of include().')
+TypeError: view must be a callable or a list/tuple in the case of include().
+```
+
+urls.py 에 view와 url 매핑은 했으나,아직 lists.views.home_page 가 None 값으로 아직 미구현 되어서 나타나는 에러이다.
+
+다시 lists/views.py 로 돌아가서 실제 view 를 함수로 구현해보자.
+
+[view 구현 코드](03-05/superlists/lists/views.py)
+
+테스트를 실행해보면
+
+```sh
+python manage.py test
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+첫 테스트가 성공했다! 사이트 루트("/") 요청을 django view 까지 연결하는 것이 성공했다는 의미이다.
