@@ -35,6 +35,8 @@ pip install -r requirements.txt
 
 [3장 단위 테스트를 이용한 간단한 홈페이지 테스트](./ch03_Testing_a_Simple_Home_Page_with_Unit_Tests/README.md)
 
+[4장 왜 테스트를 하는 것인가(그리고 리펙토링)?](./ch04/README.md)
+
 ## 2부 웹 개발 핵심편
 
 ## 3부 고급편
