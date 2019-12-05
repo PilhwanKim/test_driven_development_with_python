@@ -81,11 +81,14 @@ Destroying test database for alias 'default'...
 Django는 **대체로** MVC(Model-View-Cotroller) 패턴을 따름
 
 이 MVC 패턴을 차용하여 Django는
-  - Model(Data) - Model
-  - View - Template
-  - Controller - View
 
-라고 표현하여 MTV(model-template-view)패턴이라고 부름
+| MVC패턴 | Django |
+| ------------- |:-------------:|
+| Model(Data) | Model |
+| View | Template |
+| Controller | View |
+
+라고 표현하여 MTV(model-template-view)패턴이라고 명명함
 
 ### HTTP 요청 Django 의 처리 흐름
 
@@ -185,11 +188,11 @@ Destroying test database for alias 'default'...
 ```py
 from django.contrib import admin
 from django.urls import path
-import lists
+from lists import views as home_views
 
 urlpatterns = [
     # path('admin/', admin.site.urls),
-    path('', lists.views.home_page, name='home'),
+    path('', home_views.home_page, name='home'),
 ]
 ```
 
@@ -227,3 +230,159 @@ Destroying test database for alias 'default'...
 ```
 
 첫 테스트가 성공했다! 사이트 루트("/") 요청을 django view 까지 연결하는 것이 성공했다는 의미이다.
+
+## 뷰를 위한 단위 테스트(예제 : 03-06)
+
+- 이제 사이트 루트 요청에 실제 HTML 응답값을 반환하는 내용도 추가해야 함
+- 위의 내용을 검증하는 테스트 코드 추가가 먼저
+
+[tests 구현 코드](03-06/superlists/lists/tests.py)
+
+추가된 테스트는 요약하면 response body 텍스트가
+
+```html
+<html>
+<title>To-Do lists</title>
+</html>
+```
+
+내용으로 오는지 검증하는 내용이다.
+
+```sh
+python manage.py test
+======================================================================
+ERROR: test_home_page_returns_correct_html (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch03_Testing_a_Simple_Home_Page_with_Unit_Tests/03-06/superlists/lists/tests.py", line 15, in test_home_page_returns_correct_html
+    response = home_page(request)
+TypeError: home_page() takes 0 positional arguments but 1 was given
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+FAILED (errors=1)
+```
+
+의도적으로 테스트를 돌려보면 실패한다. 이제 구현해야 한다.
+
+### 단위 테스트-코드 주기
+
+1. 터미널에서 단위 테스트를 실행하여 어떻게 실패하는지 확인한다.
+2. 편집기 상에서 현재 실패 테스트를 수정하기 위한 **최소한의 코드**를 변경한다.
+
+코드 품질을 높이고자 한다면 코드 변경은 최소화 한다. 즉 이 케이스에서는
+
+```sh
+home_page() takes 0 positional arguments but 1 was given
+```
+
+라고 했기 때문에 home_page 함수에 argument를 1개 추가하는 **최소한의 코드**를 변경하고 다시 테스트 해야한다.
+
+1. 코드 변경(request 추가)
+
+```py
+def home_page(request):
+    pass
+```
+
+2. 테스트
+
+```sh
+======================================================================
+ERROR: test_home_page_returns_correct_html (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/superlists/lists/tests.py", line 16, in test_home_page_returns_correct_html
+    self.assertTrue(response.content.startswith(b'<html>'))
+AttributeError: 'NoneType' object has no attribute 'content'
+
+----------------------------------------------------------------------
+```
+
+home_page 에 리턴값 없이 None 으로 오기 때문이다. 그래서 코드 변경은?
+
+3. 코드 변경(return 에 django.http.HttpResponse 사용)
+
+```py
+from django.http import HttpResponse
+
+def home_page(request):
+    return HttpResponse()
+```
+
+4. 테스트
+
+```sh
+======================================================================
+FAIL: test_home_page_returns_correct_html (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/superlists/lists/tests.py", line 16, in test_home_page_returns_correct_html
+    self.assertTrue(response.content.startswith(b'<html>'))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.007s
+```
+
+리턴값 객체는 맞게 왔으나 contents 가 없기 때문이다. contents를 채울 코드 변경은?
+
+5. 코드 변경(HttpResponse 에 html content 텍스트 넣기)
+
+```python
+from django.http import HttpResponse
+
+
+def home_page(request):
+    return HttpResponse('<html><title>To-Do lists</title></html>')
+```
+
+6. 테스트
+
+```sh
+python manage.py test
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.002s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+드디어 하나의 단위 테스트가 완결되었다!
+
+이전에 개발했었던 기능 테스트(functional_test.py)를 다시 실행해보자!
+
+```sh
+# shell을 2개 띄우고 한쪽에는 django 서버를 띄움 
+$ python manage.py runserver
+
+# 다른 한쪽에서 기능 테스트 실행
+$ python functional_test.py
+F
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_test.py", line 21, in test_can_start_a_list_and_retrieve_it_later
+    self.fail('Finish the test!')
+AssertionError: Finish the test!
+
+----------------------------------------------------------------------
+Ran 1 test in 2.256s
+
+FAILED (failures=1)
+```
+
+unittest 결과는 실패로 나오지만 self.fail()가 실행되어 asserionError 가 난 것이므로 이전 test 는 통과한 것이다.
+첫번째 기능 테스트도 성공이다!
+
+## ending
+
+이 장에서 저자가 독자들이 깨닫기 원하는 핵심적인 내용은 **단위 테스트-코드 주기** 와  **최소한의 코드 변경** 이 아닌가 싶다. 
+사실 기능이나 코드 양으로 따지면 되게 적은 양인데 저렇게 까지 자주 테스트 해야하나? 라는 생각도 든다. 
+하지만 여기서 이렇게 세밀한 스텝을 언급하는 이유는 아마도 TDD가 어떤 것인지 실제 경험해 보기 위함이라는 생각이 든다. 
+한번에 한 가지씩! 한번에 아주 작은 스텝을 밟아나가기! 실제 TDD를 개발하는 방법이 이렇다는걸 잘 깨닫게 된 계기가 된 것 같다.
