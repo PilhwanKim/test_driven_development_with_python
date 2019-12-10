@@ -37,6 +37,8 @@ pip install -r requirements.txt
 
 [4장 왜 테스트를 하는 것인가(그리고 리펙토링)?](./ch04/README.md)
 
+[5장 사용자 입력 저장하기](./ch05/README.md)
+
 ## 2부 웹 개발 핵심편
 
 ## 3부 고급편
