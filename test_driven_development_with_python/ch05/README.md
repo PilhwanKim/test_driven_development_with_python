@@ -44,7 +44,7 @@
 
 브라우저가 POST 요청을 보내기 위해서는
 
-  - `<input\>` 속성에 name= 속성을 지정
+  - `<input>` 속성에 name= 속성을 지정
   - `<form>` 테그로 감싸야 함
   - `<form>` 테그에 method="POST" 지정해서 전송 방식 설정
 
@@ -73,7 +73,6 @@ Traceback (most recent call last):
     raise exception_class(message, screen, stacktrace)
 selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"css selector","selector":"[id="id_list_table"]"}
   (Session info: chrome=78.0.3904.108)
-
 
 ----------------------------------------------------------------------
 Ran 1 test in 7.253s
