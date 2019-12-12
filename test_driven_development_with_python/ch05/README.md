@@ -131,3 +131,54 @@ FAILED (failures=1)
 ```
 
 이제 브라우저 동작을 확인했으니 time.sleep은 필요없으므로 제거하자.
+
+## 서버에서 POST 요청 처리(예제 : [05-02](./05-02))
+
+폼에 action= 속성 내용이 없는 상태에서 submit 을 하면?
+
+method=POST 가 지정되어 있으므로 현재 동일 URL에 POST 방식으로 요청함
+
+이것을 검증할 단위 테스트가 필요하다.
+
+[lists/tests.py](./05-02/superlists/lists/tests.py) - 단위 테스트 추가
+
+HttpRequest 내 속성 정리
+
+- .method : HTTP 요청 메서드(string 타입)
+- .POST : POST 메서드인 요청 http body 내용(dict 타입)
+
+새로 단위 테스트를 추가했으므로 의도적인 실패가 일어나는지 확인하자
+
+```sh
+python manage.py test
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+FF.
+======================================================================
+FAIL: test_home_page_can_save_a_POST_request (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch05/05-02/superlists/lists/tests.py", line 28, in test_home_page_can_save_a_POST_request
+    self.assertIn('신규 작업 아이템', response.content.decode())
+AssertionError: '신규 작업 아이템' not found in '<html>\n    <head>\n        <title>To-Do lists</title>\n    </head>\n    <body>\n        <h1>Your To-Do list</h1>\n        <form method="POST">\n            <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">\n            <input type="hidden" name="csrfmiddlewaretoken" value="67JC67qNcs6bsJlmhjMGrbMSvevTJ7qYVFfbZlGQ9WPLwK82e9r0jFfpSD9XJAUt">\n        </form>\n\n        <table id="id_list_table">\n        </table>\n    </body>\n</html>'
+
+======================================================================
+FAIL: test_home_page_returns_correct_html (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch05/05-02/superlists/lists/tests.py", line 18, in test_home_page_returns_correct_html
+    self.assertEqual(response.content.decode(), expected_html)
+AssertionError: '<htm[227 chars]     <input type="hidden" name="csrfmiddleware[171 chars]tml>' != '<htm[227 chars]     \n        </form>\n\n        <table id="i[50 chars]tml>'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.006s
+
+FAILED (failures=2)
+Destroying test database for alias 'default'...
+```
+
+예상치 못한 상황이 발생했다. 보면 3개중 2개의 단위 테스트가 에러가 난다.
+
+테스트 로그를 확인해보면 원인은 5장 맨처음 csrf tag를 넣음으로 템플릿 html 문자열과 응답 문자열(csrf input 이 포함된) 결과가 차이가 나서 생기는 실패이다.
+
+이 차이는 어떻게 극복해야 하나?
