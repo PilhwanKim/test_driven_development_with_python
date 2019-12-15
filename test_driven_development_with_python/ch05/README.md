@@ -182,3 +182,65 @@ Destroying test database for alias 'default'...
 테스트 로그를 확인해보면 원인은 5장 맨처음 csrf tag를 넣음으로 템플릿 html 문자열과 응답 문자열(csrf input 이 포함된) 결과가 차이가 나서 생기는 실패이다.
 
 이 차이는 어떻게 극복해야 하나?
+
+스텍오버플로우에 관련 질문을 찾아보니 우회하는 방법이 있었다.
+
+https://stackoverflow.com/questions/34629261/django-render-to-string-ignores-csrf-token/39859042#39859042
+
+요약하면 `csrfmiddlewaretoken` 히든 필드를 테스트 코드에서 파이썬 정규표현식으로 제거하는 함수를 만드는 것이다.
+
+```py
+def remove_csrf(html_code):
+    csrf_regex = r'&lt;input[^&gt;]+csrfmiddlewaretoken[^&gt;]+&gt;'
+    return re.sub(csrf_regex, '', html_code)
+```
+
+lists/tests.py remove_csrf 함수를 다음과 같이 추가한다.
+
+```py
+    def test_home_page_returns_correct_html(self):
+        #...생략...
+        expected_html = render_to_string('home.html', request=request)
+        self.assertEqual(remove_csrf(response.content.decode()), remove_csrf(expected_html))
+```
+
+테스트를 다시 돌려보면
+
+```sh
+$ python manage.py test
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+F..
+======================================================================
+FAIL: test_home_page_can_save_a_POST_request (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch05/05-02/superlists/lists/tests.py", line 36, in test_home_page_can_save_a_POST_request
+    self.assertIn('신규 작업 아이템', response.content.decode())
+AssertionError: '신규 작업 아이템' not found in '<html>\n    <head>\n        <title>To-Do lists</title>\n    </head>\n    <body>\n        <h1>Your To-Do list</h1>\n        <form method="POST">\n            <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">\n            <input type="hidden" name="csrfmiddlewaretoken" value="FO3gHv4cwdk1hJyTEmkpr5e3KGenddLiKNXz7K31FIcgFDOUi5tL47OXeohJW0Xs">\n        </form>\n\n        <table id="id_list_table">\n        </table>\n    </body>\n</html>'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.006s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'..
+```
+
+이제 1가지 테스트 실패만 남았는데 이번에 추가한 테스트 코드이다.
+
+이 것을 해결하려면 POST 요청을 처리하는 코드를 작성해야 한다.
+
+제일 간단한 방식으로 반환값을 이용해서 해결해보자.
+
+[lists/views.py](./05-02/superlists/lists/views.py)
+
+```py
+def home_page(request):
+    if request.method == 'POST':
+        return HttpResponse(request.POST['item_text'])
+    return render(request, 'home.html')
+```
+
+테스트는 모두 통과한다. 그러나 우리가 최종 원하는 결과는 아니다.
+
+우리가 원하는 결과는 템플릿에 있는 테이블에 추가되는 것이다.
