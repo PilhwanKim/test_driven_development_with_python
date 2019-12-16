@@ -12,7 +12,7 @@
 - TDD 가 어떻게 반복적인 개발 스타일을 지원하는지 => 가장 빠른 방법은 아니나 결과적으로 개발 속도를 높여줌.
 - 장고 모델, POST 요청처리, 장고 템플릿 테그 같은새로운 개념 소개
 
-## POST 요청을 전송하기 위한 폼(Form) 연동(예제 : [05-01](05-01))
+## POST 요청을 전송하기 위한 폼(Form) 연동(예제 : [05-01](./05-01))
 
 4장 마지막에서 하지못했던 사용자 입력 기능을 구현해보도록 한다. 
 
@@ -95,7 +95,7 @@ FAILED (errors=1)
 
 기능 테스트를 다시 실행하면 브라우저가 10초 정도 멈추게 되는데 다음과 같은 화면이 나온다.
 
-![TF 결과](./05-01.png)
+![TF 결과](./ch05-01.png)
 
 장고는 CSRF 보호를 기본으로 지원한다. CSRF에 대해서는 [CSRF 란?](https://ko.wikipedia.org/wiki/%EC%82%AC%EC%9D%B4%ED%8A%B8_%EA%B0%84_%EC%9A%94%EC%B2%AD_%EC%9C%84%EC%A1%B0) 을 참고하자.
 
@@ -105,7 +105,7 @@ CSRF 보호를 위해 장고는 각 폼이 생성하는 POST 요청에 토큰을
 
 장고는 이 기능도 간편하게 제공한다. CSRF 전용 **템플릿 테그**를 추가한다.
 
-[lists/templates/home.html](05-01/superlists/lists/templates/home.html)
+[lists/templates/home.html](./05-01/superlists/lists/templates/home.html)
 
 장고 내부에서는 이 테그를 CSRF 토근을 포함하는 `<input type="hidden">` 요소로 변경해서 랜더링한다.
 
@@ -243,4 +243,33 @@ def home_page(request):
 
 테스트는 모두 통과한다. 그러나 우리가 최종 원하는 결과는 아니다.
 
-우리가 원하는 결과는 템플릿에 있는 테이블에 추가되는 것이다.
+우리가 원하는 결과는 템플릿에 있는 새 TODO 리스트에 '신규 작업 아이템' 이 추가되는 것이다.
+
+## 파이썬 변수를 전달해서 템플릿에 출력하기(예제 : [05-03](./05-03))
+
+어떻게 '신규 작업 아이템'을 추가해야 할까?
+
+장고는 템플릿 구문을 이용하면 파이썬 뷰 코드에 있는 변수를 그대로 추가 가능하다.
+
+[lists/templates/home.html](./05-03/superlists/lists/templates/home.html)
+
+```html
+        <table id="id_list_table">
+            <tr><td>{{ new_item_text }}</td></tr>
+        </table>
+```
+
+뷰가 제대로 된 값을 new_item_text 에 전달하는지 어떻게 테스트 하는가?
+
+render_to_string 함수를 이용한다.
+
+[lists/tests.py](./05-03/superlists/lists/tests.py)
+
+```py
+        self.assertIn('신규 작업 아이템', response.content.decode())
+        expected_html = render_to_string(
+            'home.html',
+            {'new_item_text': '신규 작업 아이템'}
+        )
+        self.assertEqual(remove_csrf(response.content.decode()), remove_csrf(expected_html))
+```
