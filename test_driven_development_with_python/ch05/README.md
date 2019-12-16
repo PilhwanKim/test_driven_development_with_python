@@ -236,9 +236,7 @@ Destroying test database for alias 'default'..
 
 ```py
 def home_page(request):
-    if request.method == 'POST':
-        return HttpResponse(request.POST['item_text'])
-    return render(request, 'home.html')
+      return HttpResponse(request.POST['item_text'])
 ```
 
 테스트는 모두 통과한다. 그러나 우리가 최종 원하는 결과는 아니다.
@@ -273,3 +271,174 @@ render_to_string 함수를 이용한다.
         )
         self.assertEqual(remove_csrf(response.content.decode()), remove_csrf(expected_html))
 ```
+
+render_to_string 두번째 인수에 변수명과 값을 매칭한 dict 를 넣는다.
+
+이는 'new_item_text' 라는 변수를 home.html 템플릿의 {{new_item_text}} 를 값으로 치환시킨다.
+
+다시 테스트를 돌려보면 실제 뷰 처리가 없어 실패한다. 다시 뷰 처리를 해보자.
+
+[lists/views.py](./05-03/superlists/lists/views.py)
+
+```py
+def home_page(request):
+    return render(request, 'home.html', {
+        'new_item_text': request.POST.get('item_text', ''),
+        })
+```
+
+다시 테스트를 돌려보자! 예상하지 못한 테스트 실패(에러) 가 나온다.
+
+```sh
+$ python manage.py test
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+FE.
+======================================================================
+ERROR: test_home_page_returns_correct_html (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pilhwankim/.pyenv/versions/tdd-with-python-env/lib/python3.7/site-packages/django/utils/datastructures.py", line 78, in __getitem__
+    list_ = super().__getitem__(key)
+KeyError: 'item_text'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch05/05-03/superlists/lists/tests.py", line 25, in test_home_page_returns_correct_html
+    response = home_page(request)
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch05/05-03/superlists/lists/views.py", line 9, in home_page
+    'new_item_text': request.POST['item_text']
+  File "/Users/pilhwankim/.pyenv/versions/tdd-with-python-env/lib/python3.7/site-packages/django/utils/datastructures.py", line 80, in __getitem__
+    raise MultiValueDictKeyError(key)
+django.utils.datastructures.MultiValueDictKeyError: 'item_text'
+```
+
+공교롭게도 우리가 POST관련 내용을 변경하고 있을 때 **다른 테스트**에서 실패가 발생하였다. 이 결과로 방금의 POST 요청 처리 코드는 잘 못되었음을 발견 할 수 있다.
+
+이것이 우리가 테스트를 작성해야 하는 이유이다. 테스트가 에플리케이션을 망가뜨릴수 있는 상황에서 우리를 구해주었다.
+
+이 에러 케이스도 반영해서 다음과 같이 변경하자.
+
+[lists/views.py](./05-03/superlists/lists/views.py)
+
+```py
+    return render(request, 'home.html', {
+        'new_item_text': request.POST.get('item_text', ''),
+        })
+```
+
+이제 단위 테스트는 통과한다. 기능 테스트는 어떤지 알아보자.
+
+```sh
+$ python functional_test.py
+F
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_test.py", line 45, in test_can_start_a_list_and_retrieve_it_later
+    '신규 작업이 테이블에 표시되지 않는다'
+AssertionError: False is not true : 신규 작업이 테이블에 표시되지 않는다
+
+----------------------------------------------------------------------
+Ran 1 test in 12.803s
+
+FAILED (failures=1)
+```
+
+TF 디버깅 방법 "에러 메시지를 개선" 하는 방법을 사용하자.
+
+[functional_test.py](./05-03/functional_test.py)
+
+```py
+        self.assertIn('1: 공작깃털 사기', [row.text for row in rows], 
+            f'신규 작업이 테이블에 표시되지 않는다 -- 해당 텍스트:\n{table.text}'
+        )
+```
+
+다음과 같이 유용한 메시지를 출력한다.
+
+```sh
+AssertionError: False is not true : 신규 작업이 테이블에 표시되지 않는다 -- 해당 텍스트:
+공작깃털 사기
+```
+
+다시 테스트의 문제 해결로 돌아와보자. FT 가 실패하는 원인은 "1:"로 시작하는 첫번째 아이템을 원한다는 것이다. 약간의 편법을 동원하자.
+
+[lists/templates/home.html](./05-03/superlists/lists/templates/home.html)
+```html
+        <table id="id_list_table">
+            <tr><td>1: {{ new_item_text }}</td></tr>
+        </table>
+```
+
+**finish the test!** 결과를 볼수 있다.
+
+그러나.. 모두 알다시피 이런 꼼수는 2번째 아이템 등록에서는 동작하지 않는다. 2번째 아이템 등록 테스트를 추가해보자.
+
+[functional_test.py](./05-03/functional_test.py)
+```py
+        # 그녀는 바로 작업을 추가하기로 한다.
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        self.assertEqual(
+            inputbox.get_attribute('placeholder'), 
+            '작업 아이템 입력'
+            )    
+
+        # "공작깃털 사기" 라고 텍스트 상자에 입력한다.
+        # (에디스의 취미는 날치 잡이용 그물을 만드는 것이다)
+        inputbox.send_keys('공작깃털 사기')
+
+        # 엔터키를 치면 페이지가 갱신되고 작업 목록에
+        # "1: 공작깃털 사기" 아이템이 추가된다
+        inputbox.send_keys(Keys.ENTER)
+
+        import time
+        time.sleep(2)
+
+        # (에디스는 매우 체계적인 사람이다)
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        inputbox.send_keys('공작깃털을 이용해서 그물 만들기')
+        inputbox.send_keys(Keys.ENTER)
+
+        import time
+        time.sleep(2)
+        # 페에제는 다시 갱신되고, 두 개 아이템이 목록에 보인다.
+        table = self.browser.find_element_by_id('id_list_table')
+        rows = table.find_elements_by_tag_name('tr')
+        self.assertIn('1: 공작깃털 사기', [row.text for row in rows], 
+            f'신규 작업이 테이블에 표시되지 않는다 -- 해당 텍스트:\n{table.text}'
+        )
+        self.assertIn(
+            '2: 공작깃털을 이용해서 그물 만들기', 
+            [row.text for row in rows], 
+            f'신규 작업이 테이블에 표시되지 않는다 -- 해당 텍스트:\n{table.text}'
+        )
+```
+
+예상된 실패를 보여준다.
+```sh
+$ python functional_test.py
+F
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_test.py", line 53, in test_can_start_a_list_and_retrieve_it_later
+    f'신규 작업이 테이블에 표시되지 않는다 -- 해당 텍스트:\n{table.text}'
+AssertionError: '1: 공작깃털 사기' not found in ['1: 공작깃털을 이용해서 그물 만들기'] : 신규 작업이 테이블에 표시되지 않는다 -- 해당 텍스트:
+1: 공작깃털을 이용해서 그물 만들기
+
+----------------------------------------------------------------------
+Ran 1 test in 6.966s
+
+FAILED (failures=1)
+```
+
+## 단위 테스트 주기 - 레드/그린/리팩터 그리고 삼각법
+
+- 레드 : 실패할 단위 테스트를 작성함으로써 작업을 시작한다.
+- 그린 : 이 테스트를 통과할 최소 코드를 작성한다. 편법도 상관없다.
+- 리펙터링 : 이해할 수 있는 코드로 바꾼다.
+  - 삼각법(Triangulation) : 방금 우리가 보여준 방식. 두번째 아이템도 추가해 본다.
