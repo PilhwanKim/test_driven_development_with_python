@@ -378,6 +378,7 @@ AssertionError: False is not true : 신규 작업이 테이블에 표시되지 �
 그러나.. 모두 알다시피 이런 꼼수는 2번째 아이템 등록에서는 동작하지 않는다. 2번째 아이템 등록 테스트를 추가해보자.
 
 [functional_test.py](./05-03/functional_test.py)
+
 ```py
         # 그녀는 바로 작업을 추가하기로 한다.
         inputbox = self.browser.find_element_by_id('id_new_item')
@@ -421,6 +422,7 @@ AssertionError: False is not true : 신규 작업이 테이블에 표시되지 �
 ```
 
 예상된 실패를 보여준다.
+
 ```sh
 $ python functional_test.py
 F
@@ -452,10 +454,9 @@ FAILED (failures=1)
 - DRY(Don't Repeat Yourself)
 - 리펙토링 전에는 커밋을 하고 진행할 것(일단은 돌아가는 코드 베이스로 시작하는 의미)
 
-FT를 리팩토링 해보자. 저번 FT 코드의 증가로 중복된 코드 내용이 생겼다. 
+FT를 리팩토링 해보자. 저번 FT 코드의 증가로 중복된 코드 내용이 생겼다.
 
 이 부분을 `check_for_row_in_list_table` 함수로 추출하는 리펙토링 한다.
-
 
 [functional_test.py](./05-04/functional_test.py)
 
@@ -497,3 +498,229 @@ FT를 리팩토링 해보자. 저번 FT 코드의 증가로 중복된 코드 내
 
 FT 를 실행해보면 결과가 바뀌지 않은 것을 확인 할수 있다.
 작은 변경이지만 테스트 코드의 가독성이 좋아졌다.
+
+## Django ORM과 첫 모델(예제 : [05-05](./05-05))
+
+### 객체 관계형 맵핑(Object-Relational Mapper, ORM)
+
+- 데이터 베이스의 테이블, 레코드, 칼럼 형태로 저장된 데이터를 추상화한 것
+- 객체지향 코딩 스타일을 그대로 유지하는 게 목적
+- Django는 기본 ORM을 탑재하고 있음.
+
+| RDB | 객체지향 언어
+| ------------- |:-------------:|
+| 테이블 | 클래스 |
+| 칼럼 | 속성 |
+| 레코드 | 인스턴스 |
+
+유닛 테스트에 새로운 클래스를 추가해 보자.
+
+### [lists/tests.py](./05-05/superlists/lists/tests.py)
+
+```py
+[...]
+
+from lists.models import Item
+
+[...]
+
+class ItemModelTest(TestCase):
+    def test_saving_and_retrieving_items(self):
+        first_item = Item()
+        first_item.text = '첫 번째 아이템'
+        first_item.save()
+        second_item = Item()
+        second_item.text = '두 번째 아이템'
+        second_item.save()
+
+        saved_items = Item.objects.all()
+        self.assertEqual(saved_items.count(), 2)
+
+        first_saved_item = saved_items[0]
+        second_saved_item = saved_items[1]
+
+        self.assertEqual(first_saved_item.text, '첫 번째 아이템')
+        self.assertEqual(second_saved_item.text, '두 번째 아이템')
+```
+
+### 위의 테스트 코드 ORM 내용 정리
+
+- save() : 비교적 쉽게 DB에 레코드 생성 가능
+- objects.all() : 테이블에 있는 모든 레코드 조회
+- QuerySet : 리스트 형태 객체. 개별 객체 조회가능
+- count() : 조회한 객체의 갯수
+
+단위 테스트를 이제 실행해보자.
+
+```sh
+$ python manage.py test
+[...]
+  File "/superlists/lists/tests.py", line 9, in <module>
+    from lists.models import Item
+ImportError: cannot import name 'Item' from 'lists.models' (/superlists/lists/models.py)
+[...]
+```
+
+~~지겹지만~~ 의도적인 실패(에러)가 발생했다.
+
+임포트 문제를 해결해 나가보자.
+
+### [lists/models.py](./05-05/superlists/lists/models.py)
+
+```py
+from django.db import models
+
+
+class Item(object):
+    pass
+```
+
+다시 테스트를 실행해보면?
+
+```sh
+$ python manage.py test
+[...]
+Traceback (most recent call last):
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch05/05-05/superlists/lists/tests.py", line 46, in test_saving_and_retrieving_items
+    first_item.save()
+AttributeError: 'Item' object has no attribute 'save'
+[...]
+```
+
+Item 클래스에는 save 메소드가 없다. 이걸 어떻게 해야하나?
+
+저자는 이미 알고 있는데 뜸을 들이고 있다. 
+
+해결책은 Django model을 상속받아 사용하려는 의도이다.
+
+### [lists/models.py](./05-05/superlists/lists/models.py)
+
+```py
+from django.db import models
+
+
+class Item(models.Model):
+    pass
+```
+
+다시 또! 테스트를 실행해보자.
+
+```sh
+$ python manage.py test
+[...]
+    return Database.Cursor.execute(self, query, params)
+django.db.utils.OperationalError: no such table: lists_item
+[...]
+```
+
+no such table 이라고 나온다. 이유는 간단하다. ORM을 사용하려면 그 전에 필요한 과정이 있기 때문이다.
+
+우리는 지금까지 DB 구성을 한 적이 없다. 이제 ORM은 당연하게도 DB 가 필요한데도 말이다.
+
+친절하게도 Django ORM 은 **마이그레이션(Migration)** 기능을 넣어두었다.
+
+### 마이그레이션(Migration)
+
+- 각 app의 models.py 파일에 적용된 내용 기반으로, 사용자가 테이블/칼럼을 삭제/추가/변경 가능하게 한다.
+- 데이터베이스를 위한 버전관리 시스템
+- 프로젝트 루트에 manage.py 의 관련 명령이 있음(migrate, makemigrations 등)
+
+자 이제 다음 명령으로 DB셋업을 시작해보자.
+
+```sh
+ python manage.py makemigrations
+Migrations for 'lists':
+  lists/migrations/0001_initial.py
+    - Create model Item
+```
+
+이 명령을 실행해보고 다음 위치 [lists/migrations](./05-05/superlists/lists/migrations) 디렉토리 가 생성되고 그 하위에 파일이 생성된다. 
+
+뭔가 변하였으므로 다시 테스트를 실행해 본다.
+
+```sh
+$ python manage.py test
+[...]
+Traceback (most recent call last):
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch05/05-05/superlists/lists/tests.py", line 58, in test_saving_and_retrieving_items
+    self.assertEqual(first_saved_item.text, '첫 번째 아이템')
+AttributeError: 'Item' object has no attribute 'text'
+[...]
+```
+
+테스트 결과가 뭔가 달라졌다. 아예 DB가 없다는 내용이었는데 attribute 가 없다는 식으로 변했다.
+
+### Django ORM 추가 내용 정리
+
+- **models.Model** 를 상속한 클래스 - DB의 Table
+- 클래스가 생성될 때 PK(Primary key) 역할의 ID 속성은 기본 생성됨
+- 다른 칼럼들은 직접 정의 필요
+
+위의 테스트 결과를 해결하려면 정리 내용대로 text 칼럼을 추가해야 한다.
+
+### [lists/models.py](./05-05/superlists/lists/models.py)
+
+```py
+from django.db import models
+
+
+class Item(models.Model):
+    text = models.TextField()
+```
+
+이제 될거리 믿고 다시 테스트를 실행해보자.
+
+```sh
+[...]
+  File "/Users/pilhwankim/.pyenv/versions/tdd-with-python-env/lib/python3.7/site-packages/django/db/backends/sqlite3/base.py", line 383, in execute
+    return Database.Cursor.execute(self, query, params)
+django.db.utils.OperationalError: no such column: lists_item.text
+```
+
+모델에 칼럼을 추가했지만 그것으로 끝나지 않는다. ORM은 마이그레이션 과정을 원한다.
+
+```sh
+$ python manage.py makemigrations
+You are trying to add a non-nullable field 'text' to item without a default; we can't do that (the database needs something to populate existing rows).
+Please select a fix:
+ 1) Provide a one-off default now (will be set on all existing rows with a null value for this column)
+ 2) Quit, and let me add a default in models.py
+Select an option: 2
+```
+
+다음과 같은 물음이 나오는데 초기값이 필요하다고 한다. 초기값을 추가해주자.
+
+### [lists/models.py](./05-05/superlists/lists/models.py)
+
+```py
+from django.db import models
+
+
+class Item(models.Model):
+    text = models.TextField(default='')
+```
+
+또 다시 시도해보자 마이그래이션이 성공한다.
+
+```sh
+$ python manage.py makemigrations
+Migrations for 'lists':
+  lists/migrations/0002_item_text.py
+    - Add field text to item
+```
+
+다시 테스트로 돌아와서 실행시켜보자.
+
+```sh
+ python manage.py test
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.010s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+이번 테스트도 마무리 되었다!
