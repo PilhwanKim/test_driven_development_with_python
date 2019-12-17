@@ -452,7 +452,9 @@ FAILED (failures=1)
 - DRY(Don't Repeat Yourself)
 - 리펙토링 전에는 커밋을 하고 진행할 것(일단은 돌아가는 코드 베이스로 시작하는 의미)
 
-FT를 리팩토링 해보자. 저번 FT 코드의 증가로 중복된 코드 내용이 생겼다. 이 부분을 리펙토링 한다.
+FT를 리팩토링 해보자. 저번 FT 코드의 증가로 중복된 코드 내용이 생겼다. 
+
+이 부분을 `check_for_row_in_list_table` 함수로 추출하는 리펙토링 한다.
 
 
 [functional_test.py](./05-04/functional_test.py)
