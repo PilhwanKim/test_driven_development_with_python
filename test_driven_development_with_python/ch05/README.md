@@ -724,3 +724,130 @@ Destroying test database for alias 'default'...
 ```
 
 이번 테스트도 마무리 되었다!
+
+## POST를 데이터베이스에 저장하기(예제 : [05-06](./05-06))
+
+지금까지는 POST 요청이 테스트 결과에 맞춰 단순히 응답에 반환되도록 짜여저 있다.
+
+이제 이것을 데이터베이스에 저장하도록 수정하는 작업을 해보자.
+
+먼저 단위 테스트 부터 변경한다.
+
+### [lists/tests.py](./05-06/superlists/lists/tests.py)
+
+```py
+[...]
+    def test_home_page_can_save_a_POST_request(self):
+        [...]
+        response = home_page(request)
+
+        self.assertEqual(Item.objects.count(), 1)
+        new_item = Item.objects.first()
+        self.assertEqual(new_item.text, '신규 작업 아이템')
+
+        self.assertIn('신규 작업 아이템', response.content.decode())
+        [...]
+```
+
+POST 요청 후에 ORM으로 DB조회 결과를 확인하는 테스트 코드가 추가되었다.
+
+어디선가 코드 냄새가 난다. 왜? 단위 테스트 길이가 너무 길기 때문에.
+
+#### 단위 테스트가 길다는 것은?
+
+- 테스트 자체가 복잡하다
+- 테스트를 몇 개로 나눌수 있다
+
+언제나 그랬듯 변경이 있으면 테스트를 실행한다. 여기서는 의도된 실패나 나와야 한다.
+
+```sh
+======================================================================
+FAIL: test_home_page_can_save_a_POST_request (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/superlists/lists/tests.py", line 34, in test_home_page_can_save_a_POST_request
+    self.assertEqual(Item.objects.count(), 1)
+AssertionError: 0 != 1
+```
+
+의도대로 진행되었다. 이제는 장고 뷰를 코딩해야 한다.
+
+### [lists/views.py](./05-06/superlists/lists/views.py)
+
+```py
+from .models import Item
+
+
+def home_page(request):
+    item = Item()
+    item.text = request.POST.get('item_text', '')
+    item.save()
+
+    return render(request, 'home.html', {
+        'new_item_text': request.POST.get('item_text', ''),
+        })
+```
+
+이 코드의 문제점은? 모든 요청에 대해서 빈 아이템을 저장하고 있는것
+
+이 문제점은 잠시 메모하고 일단 테스트를 실행해 보자. 실패하던 테스트는 성공한다.
+
+#### 저자의 깨알 Hint : 문제를 발견하면?
+
+- 문제가 작으면? - 하던 것을 멈추고 다시 한다.
+- 문제가 크면? - 일단 메모하고 뒤로 미룬다.
+- 저자는 생각해보면 참 원칙주의자이다. 책 전체에서 진짜로 한번에 한가지 일(문제해결)만 한다.
+
+메모해둔 문제점 리스트를 다시 정리하면...
+
+- 모든 요청에 대한 비어있는 요청은 저장하지 않는다.
+- 코드 냄새: POST 테스트가 너무 긴가?
+- 테이블에 아이템 여러 개 표시하기
+- 하나 이상의 목록 지원하기
+
+=> 목록도 엄청 디테일하게 짜여져 있다. 의도적이라는 생각이 든다. TDD 기본이 10~15분 내에 해결 가능한 수준으로 잘게 쪼개서 문제 해결 사이클을 작게 유지하는게 핵심이기 때문이다.
+
+저 작업중 1번째 것을 진행한다. 우선 검증할 단위 테스트를 추가한다.
+
+### [lists/tests.py](./05-06/superlists/lists/tests.py)
+
+```py
+    def test_home_page_only_saves_items_when_necessary(self):
+        request = HttpRequest()
+        home_page(request)
+        self.assertEqual(Item.objects.all().count(), 0)
+```
+
+테스트를 돌려보면 의도적인 실패가 발생한다.
+
+```sh
+Traceback (most recent call last):
+  File "/superlists/lists/tests.py", line 48, in test_home_page_only_saves_items_when_necessary
+    self.assertEqual(Item.objects.all().count(), 0)
+AssertionError: 1 != 0
+```
+
+비어있는 요청과 분리하는 코딩을 해보자.
+
+### [lists/views.py](./05-06/superlists/lists/views.py)
+
+```py
+def home_page(request):
+    if request.method == 'POST':
+        new_item_text = request.POST['item_text']
+        Item.objects.create(text=new_item_text)
+    else:
+        new_item_text = ''
+        
+    return render(request, 'home.html', {
+        'new_item_text': new_item_text,
+        })
+```
+
+완료되었으면 테스트가 통과하는지 확인한다.
+
+```sh
+Ran 5 tests in 0.020s
+
+OK
+```
