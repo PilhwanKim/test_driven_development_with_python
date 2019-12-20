@@ -851,3 +851,96 @@ Ran 5 tests in 0.020s
 
 OK
 ```
+
+## POST 후에 리디렉션(예제 : [05-07](./05-07))
+
+POST 후에는 항상 리디렉션하라(https://en.wikipedia.org/wiki/Post/Redirect/Get)
+
+POST 요청의 응답은 HTML렌더링이 아니라 GET 리디렉션 응답으로 변경하는게 목적이다.
+
+그 목적에 맞게 단위 테스트를 변경한다.
+
+### [lists/tests.py](./05-07/superlists/lists/tests.py)
+
+```py
+    def test_home_page_can_save_a_POST_request(self):
+        request = HttpRequest()
+        request.method = 'POST'
+        request.POST['item_text'] = '신규 작업 아이템'
+
+        response = home_page(request)
+
+        self.assertEqual(Item.objects.count(), 1)
+        new_item = Item.objects.first()
+        self.assertEqual(new_item.text, '신규 작업 아이템')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['location'], '/')
+```
+
+HTML 본문을 확인하는 assertion을 제거하고 대신 HTTP status가 302(리디렉션 코드), 리디렉션 URL 이 맞는지 확인하는 코드이다.
+
+변경했으니 테스트를 돌려본다. status code가 아직 200이어서 **200 != 302** 에러를 일으킨다.
+
+뷰를 그에 맞게 수정한다.
+
+### [lists/views.py](./05-07/superlists/lists/views.py)
+
+```py
+def home_page(request):
+    if request.method == 'POST':
+        Item.objects.create(text=request.POST['item_text'])
+        return redirect('/')
+        
+    return render(request, 'home.html')
+```
+
+테스트 결과는 성공한다.
+
+### HINT : 좋은 단위 테스트란?
+
+- 한 가지만 테스트를 하는 것
+- 왜 그래야 하나요?
+  - 버그 추적이 용이해짐
+  - assertion 이 많아지면 무엇이 틀렸는지 파악하기 힘듦(assertion 이 적을수록 유리)
+
+위의 내용을 기준으로 ```test_home_page_can_save_a_POST_request`를 2개로 나눠보자.
+
+### [lists/tests.py](./05-07/superlists/lists/tests.py)
+
+```py
+    def test_home_page_can_save_a_POST_request(self):
+        request = HttpRequest()
+        request.method = 'POST'
+        request.POST['item_text'] = '신규 작업 아이템'
+
+        response = home_page(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['location'], '/')
+    
+    def test_home_page_redirects_after_POST(self):
+        request = HttpRequest()
+        request.method = 'POST'
+        request.POST['item_text'] = '신규 작업 아이템'
+
+        response = home_page(request)
+
+        self.assertEqual(Item.objects.count(), 1)
+        new_item = Item.objects.first()
+        self.assertEqual(new_item.text, '신규 작업 아이템')
+```
+
+테스트를 돌려보면 테스트가 6개로 늘었고 결과는 OK이다.
+
+```sh
+$ python manage.py test
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.016s
+
+OK
+Destroying test database for alias 'default'...
+```
