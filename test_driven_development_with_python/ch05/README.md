@@ -944,3 +944,190 @@ Ran 6 tests in 0.016s
 OK
 Destroying test database for alias 'default'...
 ```
+
+## 템플릿에 있는 아이템 렌더링(예제 : [05-08](./05-08))
+
+문제점 리스트는 현재 다음과 같은 상태이다.
+
+- [x] ~~모든 요청에 대한 비어있는 요청은 저장하지 않는다.~~
+- [x] ~~코드 냄새: POST 테스트가 너무 긴가?~~
+- [ ] 테이블에 아이템 여러 개 표시하기
+- [ ] 하나 이상의 목록 지원하기
+
+이제 `테이블에 아이템 여러 개 표시하기` 작업을 해 보자.
+
+일단 여러 아이템을 출력 하는 단위 테스트를 만들어 보자.
+
+### [lists/tests.py](./05-08/superlists/lists/tests.py)
+
+```py
+
+class HomePageTest(TestCase):
+  [...]
+    def test_home_page_displays_all_list_items(self):
+        Item.objects.create(text='itemey 1')
+        Item.objects.create(text='itemey 2')
+
+        request = HttpRequest()
+        response = home_page(request)
+
+        self.assertIn('itemey 1', response.content.decode())
+        self.assertIn('itemey 2', response.content.decode())
+
+```
+
+테스트를 돌려보면 예상되는 실패가 나타났다.
+
+```sh
+    self.assertIn('itemy 1', response.content.decode())
+AssertionError: 'itemy 1' not found in '<html>\n    <head>\n        <title>To-Do lists</title>\n    </head>\n    <body>\n        <h1>Your To-Do list</h1>\n        <form method="POST">\n            <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">\n            <input type="hidden" name="csrfmiddlewaretoken" value="QeSZ9iAYixbuEvIboVutb0LnrSaJqN2RHuzEzBFetxuzXg7jsKn4alwUfL0JqOUb">\n        </form>\n\n        <table id="id_list_table">\n            <tr><td>1: </td></tr>\n        </table>\n    </body>\n</html>'
+```
+
+Django 템플릿은 리스트 반복 처리를 위한 테그를 제공
+
+```html
+{% for .. in .. %}
+```
+
+### [lists/templates/home.html](./05-08/superlists/lists/templates/home.html)
+
+```html
+[...]
+        <table id="id_list_table">
+            {% for item in items %}
+                <tr><td>{{forloop.counter}}: {{ item.text }}</td></tr>
+            {% endfor %}
+        </table>
+[...]
+```
+
+다시 테스트를 해도 통과되진 않는다. 템플릿에 items 를 건네주어야 한다.
+
+### [lists/views.py](./05-08/superlists/lists/views.py)
+
+```py
+[...]
+def home_page(request):
+    [...]
+
+    items = Item.objects.all()
+    return render(request, 'home.html', {'items': items})
+```
+
+여기까지 하면 단위 테스트는 통과한다.
+
+기능 테스트도 실행해 보자.
+```sh
+$ python functional_test.py
+F
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_test.py", line 25, in test_can_start_a_list_and_retrieve_it_later
+    self.assertIn('To-Do', self.browser.title)
+AssertionError: 'To-Do' not found in 'OperationalError at /'
+
+----------------------------------------------------------------------
+Ran 1 test in 2.690s
+
+FAILED (failures=1)
+```
+
+불행히도 실패한다. 왜 그런걸까? 일단 브러우저로 수동 접속을 해보면 다음과 같은 에러가 뜬다.
+
+![브라우저 결과](./ch05-02.png)
+
+## 마이그레이션을 이용한 운영 데이터베이스 생성하기
+
+코드상 기능은 분명 완성되었는데 왜 이런 에러가 표시되는걸까?
+
+에러를 보고 구글링해보면 실제 데이터베이스가 생성되지 않아 생기는 문제임을 알 수 있다.
+
+진짜 데이터베이스를 구축해 보자. Django 는 기본으로 localhost 의 SQLite 를 기본 DB로 설정하고 있다.
+
+### [superlists/settings.py](./05-08/superlists/superlists/settings.py)
+
+```py
+[...]
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    }
+}
+[...]
+```
+
+이전 makemigrate 로 마이그레이션 히스토리를 작성했다면, 이번에는 그 히스토리를 토대로 진짜 DB에 적용하는 과정이 필요하다. **migrate** 명령이 그 역할을 한다.
+
+```sh
+$ python manage.py migrate
+Operations to perform:
+  Apply all migrations: admin, auth, contenttypes, lists, sessions
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying lists.0001_initial... OK
+  Applying lists.0002_item_text... OK
+  Applying sessions.0001_initial... OK
+```
+
+이 명령을 실행하면 django 루트 디렉토리에 `db.sqlite3` 파일이 생성된 것을 확인 가능하다.
+
+```sh
+$ ls
+db.sqlite3 lists      manage.py  superlists
+```
+
+Sqlite DB 가 생성된 것이다.
+
+이제 django 서버를 다시 기동하고 FT 를 돌려보자.
+
+```sh
+python functional_test.py
+F
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_test.py", line 64, in test_can_start_a_list_and_retrieve_it_later
+    self.fail('Finish the test!')
+AssertionError: Finish the test!
+
+----------------------------------------------------------------------
+Ran 1 test in 6.858s
+
+FAILED (failures=1)
+```
+
+성공할 것이다. 그러나 약간의 문제가 남아있다. 
+
+FT를 매번 실행하면 할 수록 같은 목록이 반복되어 늘어난다.
+
+![이거 뭥미?](./ch05-03.png)
+
+이전 FT 에서 입력한 내용이 계속 DB에 저장되기 때문이다. 대첵은 다음에 세우도록 한다.
+
+일단은 임시로 DB 를 지운후에 재생성한다.
+
+```sh
+$ rm db.sqlite3
+$ python manage.py migrate --noinput
+```
+
+다시 DB 가 잘 리셋된다. 일단 이번 장을 여기서 마치자.
