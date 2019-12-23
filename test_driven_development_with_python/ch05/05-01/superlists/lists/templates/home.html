@@ -1,0 +1,19 @@
+<html>
+    <head>
+        <title>To-Do lists</title>
+    </head>
+    <body>
+        <h1>Your To-Do list</h1>
+        <!-- 05-01: 1 번째 추가내용 -->
+        <form method="POST">
+            <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">
+            <!-- 05-01: 2 번째 추가내용 -->
+            {% csrf_token %}
+            <!-- 05-01: 2 번째 추가내용 -->
+        </form>
+        <!-- 05-01: 1 번째 추가내용 -->
+        
+        <table id="id_list_table">
+        </table>
+    </body>
+</html>
