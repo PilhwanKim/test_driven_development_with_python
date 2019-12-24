@@ -39,6 +39,8 @@ pip install -r requirements.txt
 
 [5장 사용자 입력 저장하기](./ch05/README.md)
 
+[6장 최소 동작 사이트 구축](./ch06/README.md)
+
 ## 2부 웹 개발 핵심편
 
 ## 3부 고급편
