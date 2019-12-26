@@ -290,3 +290,275 @@ Ran 1 test in 6.322s
 FAILED (failures=1)
 Destroying test database for alias 'default'...
 ```
+
+## Django 테스트 클라이언트를 이용한 뷰, 템플릿, URL 동시 테스트(예제 : [06-03](./06-03))
+
+지금까지 단위 테스트 방식
+
+1. URL 해석(라우팅) 의도대로 되는지 검증
+2. 실제 뷰 함수 호출하여 동작하는지 검증
+3. 뷰가 템플릿을 제대로 렌더링하는지 확인
+
+But! Django는 이 3가지를 한번에 테스트 할 수 있는 툴이 존재! (두둥!! 왜 이 삽질을...)
+
+저자 왈, 장고의 세부적인 동작(기반 기술)을 이해하기 위함이라고 한다.
+
+자 위에 언급한 신박한(?) 툴을 적용해 보자~! 새로운 테스트 클래스를 추가한다.
+
+### [lists/tests.py](./06-03/superlists/lists/tests.py)
+
+```py
+[..]
+class ListViewTest(TestCase):
+
+    def test_displays_all_list_items(self):
+        Item.objects.create(text='itemey 1')
+        Item.objects.create(text='itemey 2')
+
+        response = self.client.get('/lists/the-only-list-in-the-world/')
+
+        self.assertContains(response, 'itemey 1')
+        self.assertContains(response, 'itemey 2')
+
+```
+
+- 뷰 호출 대신 self.client(테스트 클라이언트) 로 대체하고 있다. HTTP get 요청을 동일하게 한다.
+- assertIn/response.content.decode() 대신 장고가 제공하는 assertContains 메소드를 사용하는데 알아서 response 객체를 해석해준다.
+
+테스트를 실행하면 의도적 실패가 일어난다.
+
+```sh
+$ python manage.py test lists
+[..]
+AssertionError: 404 != 200 : Couldn't retrieve content: Response code was 404 (expected 200)
+```
+
+이 에러가 난 이유는 URL 이 아직 존재하지 않기 때문이다. url을 추가해 보자.
+
+### [superlists/urls.py](./06-03/superlists/superlists/urls.py)
+
+```py
+[...]
+urlpatterns = [
+    # path('admin/', admin.site.urls),
+    path('', home_views.home_page, name='home'),
+    path('lists/the-only-list-in-the-world/', home_views.view_list, name='view_list'),
+]
+```
+
+url 도 만들었으니 다시 단위 테스트를 실행해보자. 
+
+```sh
+  File "/superlists/superlists/urls.py", line 23, in <module>
+    path('lists/the-only-list-in-the-world/', home_views.view_list, name='view_list'),
+AttributeError: module 'lists.views' has no attribute 'view_list'
+```
+
+실행하면 `view_list` 가 없다는 결과가 나온다. view 도 추가하자.
+
+### [lists/views.py](./06-03/superlists/lists/views.py)
+
+```py
+[..]
+
+def view_list(request):
+    pass
+```
+
+다시 테스트를 실행해보자.
+
+```sh
+[..]
+    "returned None instead." % (callback.__module__, view_name)
+ValueError: The view lists.views.view_list didn't return an HttpResponse object. It returned None instead.
+```
+
+리턴이 없다고 메시지를 보낸다. `home_page` 뷰의 마지막 2줄을 그대로 가져요자.
+
+```py
+def view_list(request):
+    items = Item.objects.all()
+    return render(request, 'home.html', {'items': items})
+```
+
+다시 테스트를 실행하면 성공한다.
+
+```sh
+$ python manage.py test lists
+[..]
+Ran 8 tests in 0.029s
+
+OK
+```
+
+아직은 FT를 실행하면 통과하지 못한다.
+
+```sh
+$ python manage.py test functional_tests
+[..]
+AssertionError: Regex didn't match: '/lists/.+' not found in 'http://localhost:49423/'
+
+```
+
+### 그린? 아니면 리팩터?
+
+단위 테스트는 현재 `레드/그린/리팩터` 중에 `그린` 인 상태이다. 이제 해야할 일은 `리펙터링` 인데 필요한 부분이 있는지 살펴봐야 한다.
+
+현재 2개 뷰(home_page, view_list) 를 살펴보면 get방식일 경우 같은 템플릿을 사용하며, Item은 동일한 내용으로 전달한다.
+
+그런 점으로 보자면 단위 테스트 2개가 필요한 상황은 아니다.
+
+`test_home_page_displays_all_list_items` 은 중복으로 필요는 없다. 
+
+삭제하고 다시 단위 테스트를 돌려보자.
+
+```sh
+$ python manage.py test lists
+Ran 7 tests in 0.027s
+```
+
+8개에서 7개로 단위 테스트가 줄었다.
+
+### 목록 출력을 위한 별도 템플릿
+
+이제 메인 페이지와 목록 화면이 별개의 개념으로 가기로 했기에 각각 별개의 템플릿을 사용하도록 해보자.
+
+- `home.html` - 홈 화면, 하나의 입력 상자
+- `list.html` - 아이템들을 보여주는 테이블
+
+먼저 테스트 부터 추가해보자.
+
+### [lists/tests.py](./06-03/superlists/lists/tests.py)
+
+```py
+class ListViewTest(TestCase):
+    def test_uses_list_tempate(self):
+        response = self.client.get('/lists/the-only-list-in-the-world/')
+        self.assertTemplateUsed(response, 'list.html')
+
+    def test_displays_all_list_items(self):
+[..]
+```
+
+assertTemplateUsed - django test client 가 제공하는 템플릿 일치 여부 함수
+
+추가하고 바로 테스트를 돌려보면...
+
+```sh
+AssertionError: False is not true : Template 'list.html' was not a template used to render the response. Actual template(s) used: home.htm
+```
+
+의도한 실패가 나온다. view 단에서 이제 고쳐보자.
+
+### [lists/views.py](./06-03/superlists/lists/views.py)
+
+```py
+[..]
+def view_list(request):
+    items = Item.objects.all()
+    return render(request, 'list.html', {'items': items})
+[..]
+```
+
+변경 후에 다시 테스트를 시도해보자
+
+```sh
+
+django.template.exceptions.TemplateDoesNotExist: list.html
+```
+
+예상했겠지만 list.html 템플릿이 없어서 익셉션이 난다. list.html 템플릿을 만들어보자.
+
+현재는 home.html과 별 차이가 없기에 파일을 복사해서 사용한다.
+
+```sh
+$ cp lists/templates/home.html lists/templates/list.html
+```
+
+복사 후에 단위 테스트를 돌려보면 통과한다(그린단계). 자 이제 리팩토링을 할 것이 없는지 확인해보자.
+
+이제 메인 페이지는 아이템 출력이 필요없기 때문에 필요없는 부분을 삭제해준다.
+
+### [lists/templates/home.html](./06-03/superlists/lists/templates/home.html)
+
+이와 동시에 홈 화면에 아이템을 검색할 필요가 없기에 `home_page` 뷰도 Item 검색을 삭제한다.
+
+### [lists/views.py](./06-03/superlists/lists/views.py)
+
+```py
+[..]
+
+def home_page(request):
+    if request.method == 'POST':
+        Item.objects.create(text=request.POST['item_text'])
+        return redirect('/lists/the-only-list-in-the-world/')
+    return render(request, 'home.html')
+[..]
+```
+
+변경이 잘 이루어졌는지 단위 테스트를 돌려보자.
+
+```sh
+$ python manage.py test lists
+
+Ran 8 tests in 0.070s
+
+OK
+```
+
+성공한다. FT 도 확인해보자.
+
+```sh
+$  python manage.py test functional_tests
+[..]
+    self.assertIn(row_text, [row.text for row in rows])
+AssertionError: '2: 공작깃털을 이용해서 그물 만들기' not found in ['1: 공작깃털 사기']
+[..]
+```
+
+무엇이 문제일까? 
+
+1. 첫번째 아이템은 홈 화면에서 입력한다. 
+2. 리다이렉션이 일어나 URL `/lists/the-only-list-in-the-world/` 로 이동한다.
+3. 이 화면에서 두번째 아이템을 입력한다.
+4. 목록 조회화면 form 테그의 action이 없으므로  `POST /lists/the-only-list-in-the-world/`  요청으로 이어진다. 현재는 저 view 처리가 없다.
+
+새 아이템 등록은 `POST /` 이므로 `list.html` 을 변경해보자.
+
+### [lists/templates/list.html](./06-03/superlists/lists/templates/list.html)
+
+```html
+[..]
+        <h1>Your To-Do list</h1>
+        <form method="POST" action="/"">
+            <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">
+            {% csrf_token %}
+        </form>
+[..]
+```
+
+```sh
+$ python manage.py test functional_tests
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+F
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (functional_tests.tests.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/superlists/functional_tests/tests.py", line 86, in test_can_start_a_list_and_retrieve_it_later
+    self.assertNotEqual(francis_list_url, edith_list_url)
+AssertionError: 'http://localhost:49993/lists/the-only-list-in-the-world/' == 'http://localhost:49993/lists/the-only-list-in-the-world/'
+
+----------------------------------------------------------------------
+Ran 1 test in 10.656s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+```
+
+다시 이전 상태로 잘 돌아왔다. 리펙터링이 완료되었다.
+
+작업 자체는 참 번거롭게 여러번 왔다 갔다 했지만 큰 진전이 있었다. 
+
+1가지 설계 사항을 원하는 대로 반영했기 때문이다.
