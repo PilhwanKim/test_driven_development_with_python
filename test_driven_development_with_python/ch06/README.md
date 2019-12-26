@@ -200,3 +200,93 @@ Destroying test database for alias 'default'...
 1장~6장 첫번째 예제까지 우리는 FT 단위의 TDD 프로세스를 한바퀴 돌았다(사실 2번 했다.)
 
 이걸 다시 언급하는 이유는 이 프로세스가 저런 설계 명세가 있는 개발도 TDD 프로세스가 작동함을 저자가 보여주고 싶어서 인것 같다.
+
+다시 FT 로 돌아와서 에디스가 첫 번째 아이템을 만들자 마자 새로운 목록을 만들어서 신규 작업 아이템을 추가한다.
+
+그리고 그녀가 만든 목록에 접근할 URL을 제공하도록 FT 에 추가해 보자.
+
+### [functional_tests/tests.py](./06-02/superlists/functional_tests/tests.py)
+
+```py
+[...]
+        # 엔터키를 누르면 새로운 URL로 바뀐다. 그리고 작업 목록에
+        # "1: 공작깃털 사기" 아이템이 추가된다
+        inputbox.send_keys(Keys.ENTER)
+        
+        import time
+        time.sleep(2)
+        
+        edith_list_url = self.browser.current_url
+        self.assertRegex(edith_list_url, '/lists/.+')
+        self.check_for_row_in_list_table('1: 공작깃털 사기')
+[...]
+```
+
+그리고 테스트 마지막 부분을 수정해서 다른 사용자가 접속하는 경우를 고려한다.
+
+- 다른 사람이 접속할 경우 에디스의 목록이 보이지 않는 것을 확인
+- 각 사용자별 별도 URL이 생성되는지 여부 확인
+
+self.fail 앞에 있는 주석 부터 지우고 다음과 같이 입력한다.
+
+```py
+        [...]
+        # 페이지는 다시 갱신되고, 두 개 아이템이 목록에 보인다.
+        self.check_for_row_in_list_table('1: 공작깃털 사기')
+        self.check_for_row_in_list_table('2: 공작깃털을 이용해서 그물 만들기')
+
+        # 새료운 사용자인 프란시스가 사이트에 접속한다.
+
+        ## 새로운 브라우저 세션을 이용해서 에디스의 정보가
+        ## 쿠키를 통해 유입되는 것을 방지한다
+        self.browser.quit()
+        self.browser = webdriver.Chrome('chromedriver')
+
+        # 프란시스가 홈페이지에 접속한다.
+        # 에디스의 리스트는 보이지 않는다.
+        self.browser.get(self.live_server_url)
+        page_text = self.browser.find_element_by_tag_name('body').text
+        self.assertNotIn('공작깃털 사기', page_text)
+        self.assertNotIn('공작깃털을 이용해서 그물 만들기', page_text)
+
+        # 프란시스가 새로운 작업 아이템을 입력하기 시작한다.
+        # 그는 에디스보다 재미가 없다.
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        inputbox.send_keys('우유 사기')
+        inputbox.send_keys(Keys.ENTER)
+
+        # 프란시스가 전용 URL을 취득한다.
+        francis_list_url = self.browser.current_url
+        self.assertRegex(francis_list_url, '/lists/.+')
+        self.assertNotEqual(francis_list_url, edith_list_url)
+        
+        # 에디스가 입력한 흔적이 없다는 것을 다시 확인한다.
+        page_text = self.browser.find_element_by_tag_name('body').text
+        self.assertNotIn('공작깃털 사기', page_text)
+        self.assertIn('우유 사기', page_text)      
+
+        # 만족하고 잠자리에 든다.
+        [...]
+```
+
+FT를 실행해보면 예상되는 실패 결과가 나온다.
+
+```sh
+$ python manage.py test functional_tests
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+F
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (functional_tests.tests.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pilhwankim/Github/books/test_driven_development_with_python/ch06/06-02/superlists/functional_tests/tests.py", line 48, in test_can_start_a_list_and_retrieve_it_later
+    self.assertRegex(edith_list_url, '/lists/.+')
+AssertionError: Regex didn't match: '/lists/.+' not found in 'http://localhost:56148/'
+
+----------------------------------------------------------------------
+Ran 1 test in 6.322s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+```
