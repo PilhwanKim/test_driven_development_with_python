@@ -559,6 +559,179 @@ Destroying test database for alias 'default'...
 
 다시 이전 상태로 잘 돌아왔다. 리펙터링이 완료되었다.
 
-작업 자체는 참 번거롭게 여러번 왔다 갔다 했지만 큰 진전이 있었다. 
+작업 자체는 참 번거롭게 여러번 왔다 갔다 했지만 큰 진전이 있었다.
 
 1가지 설계 사항을 원하는 대로 반영했기 때문이다.
+
+## 목록 아이템을 추가하기 위한 URL과 뷰 (예제 : [06-04](./06-04))
+
+### 신규 목록 생성을 위한 테스트 클래스
+
+
+`test_home_page_can_save_a_POST_request`, `test_home_page_redirects_after_POST` 를 새로운 클래스로 이동한다. 새 클래스 명칭은 `NewListTest` 이다.
+
+```py
+class NewListTest(TestCase):
+    def test_home_page_can_save_a_POST_request(self):
+        request = HttpRequest()
+        request.method = 'POST'
+        [...]
+    
+    def test_home_page_redirects_after_POST(self):
+        [...]
+```
+
+이 2가지 테스트를 Django 클라이언트 테스트를 이용하도록 변경한다.
+
+#### [lists/tests.py](./06-04/superlists/lists/tests.py)
+
+```py
+class NewListTest(TestCase):
+    def test_home_page_can_save_a_POST_request(self):
+        self.client.post(
+            '/lists/new',
+            data={'item_text': '신규 작업 아이템'}
+            )
+        self.assertEqual(Item.objects.count(), 1)
+        new_item = Item.objects.first()
+        self.assertEqual(new_item.text, '신규 작업 아이템')
+    
+    def test_home_page_redirects_after_POST(self):
+        response = self.client.post(
+            '/lists/new',
+            data={'item_text': '신규 작업 아이템'}
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['location'], '/lists/the-only-list-in-the-world/')
+```
+
+테스트를 실행해보자. 아이템 추가하는 것과 관련된 테스트를 재 작성한 거나 마찬가지이다. 
+
+결과는 의도한 실패가 2개 추가된다.
+
+```py
+$ python manage.py test lists
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+......FF
+======================================================================
+FAIL: test_home_page_can_save_a_POST_request (lists.tests.NewListTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pilhwankim/github/books/test_driven_development_with_python/ch06/06-04/superlists/lists/tests.py", line 74, in test_home_page_can_save_a_POST_request
+    self.assertEqual(Item.objects.count(), 1)
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_home_page_redirects_after_POST (lists.tests.NewListTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pilhwankim/github/books/test_driven_development_with_python/ch06/06-04/superlists/lists/tests.py", line 83, in test_home_page_redirects_after_POST
+    self.assertEqual(response.status_code, 302)
+AssertionError: 404 != 302
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.029s
+
+FAILED (failures=2)
+```
+
+잠깐 실패를 확인해보자.
+
+첫 번째 실패는 아직 DB에 새 목록을 저장하지 못했다는 뜻이다. 이제야 유용하게 테스트 코드가 활용된다.
+
+두 번째 실패는 lists/new 가 아직 url 지정되지 않아서 404 에러가 난다.
+
+### 신규 목록 생성을 위한 URL과 뷰
+
+먼저 urls.py에 url을 지정하자.
+
+#### [superlists/urls.py](./06-04/superlists/superlists/urls.py)
+
+```py
+urlpatterns = [
+    # path('admin/', admin.site.urls),
+    path('', home_views.home_page, name='home'),
+    path('lists/the-only-list-in-the-world/', home_views.view_list, name='view_list'),
+    path('lists/new', home_views.new_list, name='new_list'),
+]
+```
+
+테스트를 돌려보면
+
+`AttributeError: module 'lists.views' has no attribute 'new_list'`
+
+라고 view 가 없다고 나온다.
+
+view를 추가해주자.
+
+#### [lists/views.py](./06-04/superlists/lists/views.py)
+
+```py
+[...]
+def new_list(request):
+    Item.objects.create(text=request.POST['item_text'])
+    return redirect('/lists/the-only-list-in-the-world/')
+[...]
+```
+
+여기서 책 본문과 차이점이 있다.
+
+책의 장고 1.7버전에서는 `response['location']` 이 URL이 도메인 까지 포함되어 결과가 나왔으나,
+
+현재 2.2 버전에서는 동일하게 상대URL 만 표시되어 나와서 현재 결과로도 테스트 통과가 된다.
+
+그러나 예제의 통일성과 좀 더 정확한 결과 측정을 위해서 `assertEqual` 문을 `assertRedirects`로 책과 동일하게 바꾼다.
+
+```py
+[...]
+        # self.assertEqual(response['location'], '/lists/the-only-list-in-the-world/')
+        self.assertRedirects(response, '/lists/the-only-list-in-the-world/')
+```
+
+테스트를 돌려보면 통과한다.
+
+```sh
+$ python manage.py test list
+[...]
+Ran 8 tests in 0.035s
+
+OK
+```
+
+### 필요 없는 코드와 테스트 삭제
+
+이제 리펙토링 할 차례가 왔다. 코드를 단순화하기위해 필요 없는 코드를 제거할 때이다.
+
+먼저 `home_page` 뷰의 POST 요청은 이미 `new_list`로 옮겨왔으니 삭제 한다.
+
+```py
+[...]
+def home_page(request):
+    return render(request, 'home.html')
+[...]
+```
+
+다시 테스트로 문제 없는지 확인하자.
+
+```sh
+$ python manage.py test list
+[...]
+Ran 8 tests in 0.035s
+
+OK
+```
+
+문제 없이 잘 동작한다.
+
+`test_home_page_only_saves_items_when_necessary` 도 이제는 의미가 없어졌다. 이 테스트도 삭제하자.
+
+```py
+$ python manage.py test list
+[...]
+Ran 7 tests in 0.040s
+
+OK
+```
+
+자 코드 정리도 잘 마무리 되었다.
