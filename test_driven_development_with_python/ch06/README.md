@@ -734,4 +734,118 @@ Ran 7 tests in 0.040s
 OK
 ```
 
-자 코드 정리도 잘 마무리 되었다.
+자 코드 정리도 잘 마무리 되었다. 작업중 하나가 마무리 되었다.
+
+### 작업 메모장
+
+- [x] ~~FT가 끝난 후에 결과물을 제거한다~~
+- [ ] 모델을 조정해서 아이템들이 다른 목록과 연계되도록 한다
+- [ ] 각 목록별 고유 URL을 추가한다
+- [x] ~~POST를 이용해서 새로운 목록을 생성하는 URL을 추가한다~~
+- [ ] POST를 이용해서 새로운 아이템을 기존 목록에 추가하는 URL을 만든다.
+
+## 모델 조정하기 (예제 : [06-05](./06-05))
+
+자 이번에는 모델을 조정할 차례이다. 먼저 모델과 관련된 테스트들 부터 변경한다.
+
+### [lists/tests.py](./06-05/superlists/lists/tests.py)
+
+너무 이제 변경점을 관리하기 어려워져서 diff 툴을 쓰기로 했다.
+
+앞에 `-` 는 이전 버전 코드
+
+앞에 `+` 는 변경/추가 된 코드이다.
+
+```py
+@@ -6,7 +6,7 @@
+ from django.template.loader import render_to_string
+
+ from lists.views import home_page
+-from lists.models import Item
++from lists.models import Item, List
+
+ def remove_csrf(html_code):
+     csrf_regex = r'<input[^>]+csrfmiddlewaretoken[^>]+>'
+@@ -25,15 +25,22 @@
+         self.assertEqual(remove_csrf(response.content.decode()), remove_csrf(expected_html))
+
+
+-class ItemModelTest(TestCase):
++class ListAndItemModelTest(TestCase):
+     def test_saving_and_retrieving_items(self):
++        list_ = List()
++        list_.save()
++
+         first_item = Item()
+         first_item.text = '첫 번째 아이템'
++        first_item.list = list_
+         first_item.save()
+
+         second_item = Item()
+         second_item.text = '두 번째 아이템'
++        second_item.list = list_
+         second_item.save()
++        saved_list = List.objects.first()
++        self.assertEqual(saved_list, list_)
+
+         saved_items = Item.objects.all()
+         self.assertEqual(saved_items.count(), 2)
+@@ -42,7 +49,9 @@
+         second_saved_item = saved_items[1]
+
+         self.assertEqual(first_saved_item.text, '첫 번째 아이템')
++        self.assertEqual(first_saved_item.list, list_)
+         self.assertEqual(second_saved_item.text, '두 번째 아이템')
++        self.assertEqual(second_saved_item.list, list_)
+
+
+ class ListViewTest(TestCase):
+```
+
+### 코드 설명
+
+- Item 을 담는 List(목록) 모델을 만들고 각 아이템에 .list 속성을 부여하여 자기가 속한 List 모델을 할당하고 있다.
+- 목록이 제대로 저장되었는지와 두 개 작업 아이템이 목록에 제대로 할당되었는지 확인하는 코드이다.
+- List 객체는 서로 비교하는 것이 가능한데 이 비교는 주로 모델을 PK(Primary Key)인 `.id` 가 같은지 확인한다.
+
+자 이제 테스트 코드를 돌려보자.
+
+```sh
+ImportError: cannot import name 'List' from 'lists.models'
+```
+
+예상된 첫 에러는 모델이 없다는 import 에러이다. 고쳐보자.
+
+### [lists/models.py](./06-05/superlists/lists/models.py)
+
+```py
+@@ -2,4 +2,8 @@
+
++
++class List(models.Model):
++    pass
+```
+
+추가후 바로 테스트를 돌려보면~
+
+```sh
+django.db.utils.OperationalError: no such table: lists_list
+```
+
+가 나온다. 이전에 한번 언급 했다시피 DB 마이그레이션 과정이 필요하다.
+
+```sh
+$ python manage.py makemigrations
+Migrations for 'lists':
+  lists/migrations/0003_list.py
+    - Create model List
+```
+
+마이그레이션 과정을 거친후에 다시 테스트를 거치면 이런 에러가 발생한다.
+
+```sh
+    self.assertEqual(first_saved_item.list, list_)
+AttributeError: 'Item' object has no attribute 'list'
+```
+
+### 외래 키 관계
