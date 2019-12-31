@@ -819,11 +819,13 @@ ImportError: cannot import name 'List' from 'lists.models'
 ### [lists/models.py](./06-05/superlists/lists/models.py)
 
 ```py
-@@ -2,4 +2,8 @@
+[...]
+class List(models.Model):
+    pass
 
-+
-+class List(models.Model):
-+    pass
+
+class Item(models.Model):
+[...]
 ```
 
 추가후 바로 테스트를 돌려보면~
@@ -849,3 +851,151 @@ AttributeError: 'Item' object has no attribute 'list'
 ```
 
 ### 외래 키 관계
+
+Item에 .list 를 어떻게 부여해줄 수 있을까? 이렇게??
+
+```py
+class Item(models.Model):
+    text = models.TextField(default='')
+    list = models.TextField(defualt='')
+```
+
+모델이 바뀌었으니 마이그레이션을 하고 테스트를 실행해보자.
+
+```sh
+$ python manage.py test lists
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+..F....
+======================================================================
+FAIL: test_saving_and_retrieving_items (lists.tests.ListAndItemModelTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/superlists/lists/tests.py", line 52, in test_saving_and_retrieving_items
+    self.assertEqual(first_saved_item.list, list_)
+AssertionError: 'List object (1)' != <List: List object (1)>
+```
+
+- 우리가 원하는 것 : `.list` List 객체 자체로 저장됨.
+- 실제 결과 :  `.list`를 List객체의 문자열로 저장함.
+
+장고에서 우리가 원하는 방법대로 되려면 어떻게 해야하는가?
+정답 : models.ForeignKey를 이용하여 두 model간 관계를 만들어야 한다.
+
+#### [lists/models.py](./06-05/superlists/lists/models.py)
+
+```py
+class Item(models.Model):
+    text = models.TextField(default='')
+    list = models.ForeignKey(List, default=None, on_delete=models.CASCADE)
+```
+
+다시 마이그레이션이 필요하다. 방금한 마이그래이션은 취소해야 하니 마이그래이션 파일을 지우고 시작한다.
+
+```sh
+rm lists/migrations/0004_item_list.py
+
+$ python manage.py makemigrations lists
+Migrations for 'lists':
+  lists/migrations/0004_item_list.py
+    - Add field list to item
+```
+
+변경 후에 테스트를 돌려보자.
+
+### 나머지 세상을 위한 새로운 모델
+
+```sh
+ python manage.py test lists
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+...E.EE
+======================================================================
+ERROR: test_displays_all_list_items (lists.tests.ListViewTest)
+----------------------------------------------------------------------
+[...]
+django.db.utils.IntegrityError: NOT NULL constraint failed: lists_item.list_id
+
+======================================================================
+ERROR: test_home_page_can_save_a_POST_request (lists.tests.NewListTest)
+----------------------------------------------------------------------
+[...]
+django.db.utils.IntegrityError: NOT NULL constraint failed: lists_item.list_id
+
+======================================================================
+ERROR: test_home_page_redirects_after_POST (lists.tests.NewListTest)
+----------------------------------------------------------------------
+[...]
+django.db.utils.IntegrityError: NOT NULL constraint failed: lists_item.list_id
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.120s
+
+FAILED (errors=3)
+Destroying test database for alias 'default'...
+```
+
+#### 결과 해석
+
+- 우리가 목표한 `test_saving_and_retrieving_items` 테스트는 성공했으나 다른 뷰 테스트는 실패했다.
+- 희망적인 것은 동일한 에러는 동일한 문제일 가능성이 있다.
+- 저 에러를 구글링하고 해석해보면 이렇다.
+- 각 Item 모델은 꼭 1개의 List를 가지고 있어야 하기 때문에 발생한다. 즉 List 없는 Item은 없다는 모델 선언 때문이다.
+
+원인을 알았으니 이제 Test를 수정하여 문제를 해결해보자.
+
+#### [lists/tests.py](./06-05/superlists/lists/tests.py)
+
+```py
+[...]
+    def test_displays_all_list_items(self):
+        list_ = List.objects.create()
+        Item.objects.create(text='itemey 1', list=list_)
+        Item.objects.create(text='itemey 2', list=list_)
+[...]
+```
+
+테스트를 다시 돌려보면 2개로 실패가 준 걸 볼수 있다.
+
+나머지 2개
+(test_home_page_can_save_a_POST_request, test_home_page_redirects_after_POST)
+
+는 view 단에서 고쳐야 한다.
+
+#### [lists/views.py](./06-05/superlists/lists/views.py)
+
+```py
+from .models import (
+    Item, List
+)
+[...]
+def new_list(request):
+    _list = List.objects.create()
+    Item.objects.create(text=request.POST['item_text'], list=_list)
+    return redirect('/lists/the-only-list-in-the-world/')
+```
+
+테스트가 통과한다.
+
+```sh
+$ python manage.py test lists
+Ran 7 tests in 0.027s
+
+OK
+```
+
+사실 view 단의 코드는 논리적으로는 잘못된 것이다. 
+
+새로 item을 생성할 때마다 list가 생성되는 이상한 코드이다.
+
+테스트 고트 님을 기억하자. 한번에 한 스텝씩 고치는 것. TDD의 기본이다.
+
+자 한가지 일이 끝났다.
+
+### 작업 메모장
+
+- [x] ~~FT가 끝난 후에 결과물을 제거한다~~
+- [x] ~~모델을 조정해서 아이템들이 다른 목록과 연계되도록 한다~~
+- [ ] 각 목록별 고유 URL을 추가한다
+- [x] ~~POST를 이용해서 새로운 목록을 생성하는 URL을 추가한다~~
+- [ ] POST를 이용해서 새로운 아이템을 기존 목록에 추가하는 URL을 만든다.
