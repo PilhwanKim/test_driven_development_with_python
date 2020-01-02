@@ -999,3 +999,211 @@ OK
 - [ ] 각 목록별 고유 URL을 추가한다
 - [x] ~~POST를 이용해서 새로운 목록을 생성하는 URL을 추가한다~~
 - [ ] POST를 이용해서 새로운 아이템을 기존 목록에 추가하는 URL을 만든다.
+
+## 각 목록이 하나의 고유 URL을 가져야 한다 (예제 : [06-06](./06-06))
+
+`ListViewTest`를 수정하여 2 개의 테스트가 고유URL을 가리키도록 하자.
+
+URL의 고유 식별자는 list 테이블의 id로 한다.
+
+그리고 `test_displays_all_list_items` 은 이름을
+
+`test_displays_only_items_for_that_list` 로 바꾼다.
+
+#### [lists/tests.py](./06-06/superlists/lists/tests.py)
+
+```py
+ class ListViewTest(TestCase):
+     def test_uses_list_tempate(self):
+-        response = self.client.get('/lists/the-only-list-in-the-world/')
++        list_ = List.objects.create()
++        response = self.client.get(f'/lists/{list_.id}/')
+         self.assertTemplateUsed(response, 'list.html')
+
+-    def test_displays_all_list_items(self):
+-        list_ = List.objects.create()
+-        Item.objects.create(text='itemey 1', list=list_)
+-        Item.objects.create(text='itemey 2', list=list_)
++    def test_displays_only_items_for_that_list(self):
++        correct_list = List.objects.create()
++        Item.objects.create(text='itemey 1', list=correct_list)
++        Item.objects.create(text='itemey 2', list=correct_list)
++        other_list = List.objects.create()
++        Item.objects.create(text='다른 목록 아이템 1', list=other_list)
++        Item.objects.create(text='다른 목록 아이템 2', list=other_list)
+
+-        response = self.client.get('/lists/the-only-list-in-the-world/')
++        response = self.client.get(f'/lists/{correct_list.id}/')
+
+         self.assertContains(response, 'itemey 1')
+         self.assertContains(response, 'itemey 2')
+
++        self.assertNotContains(response, '다른 목록 아이템 1')
++        self.assertNotContains(response, '다른 목록 아이템 2')
++
+
+ class NewListTest(TestCase):
+     def test_home_page_can_save_a_POST_request(self):
+```
+
+이제 항상 했던 의도적인 실패가 나는지 확인해보자.
+
+```sh
+$ python manage.py test lists
+======================================================================
+FAIL: test_displays_only_items_for_that_list (lists.tests.ListViewTest)
+----------------------------------------------------------------------
+[...]
+AssertionError: 404 != 200 : Couldn't retrieve content: Response code was 404 (expected 200)
+
+======================================================================
+FAIL: test_uses_list_tempate (lists.tests.ListViewTest)
+----------------------------------------------------------------------
+[...]
+    self.fail(msg_prefix + "No templates used to render the response")
+AssertionError: No templates used to render the response
+```
+
+실패의 원인은 아직 잘 알수 없다.
+
+그러나 일단은 변경된 내용만 실패하는것으로 보아 테스트 코드에 맞는 앱 코드를 변경해야 할 차례가 되었다.
+
+### URL에서 파라메터 취득하기
+
+책의 내용이 오래되서 설명이 필요하다. 장고가 2.0 이후로 URL 패턴이 단순화되었다.
+(2.0 릴리즈 문서 참고 : https://docs.djangoproject.com/en/3.0/releases/2.0/#simplified-url-routing-syntax)
+
+현재 2.2 기준으로 따라하기를 진행하고 있기도 하고, 굳이 이전버전의 복잡한 방식을 따라할 필요가 없다. 자세한 내용은 여기를 참고하자.
+
+- https://docs.djangoproject.com/en/2.2/topics/http/urls/
+
+위에 링크를 따라가 예제를 보면 어떻게 할지 쉽게 알수 있다.
+
+```py
+urlpatterns = [
+    path('articles/2003/', views.special_case_2003),
+    path('articles/<int:year>/', views.year_archive),
+    path('articles/<int:year>/<int:month>/', views.month_archive),
+    path('articles/<int:year>/<int:month>/<slug:slug>/', views.article_detail),
+]
+```
+
+위의 예제를 참고하면 `<int:year>` 처럼 :앞쪽은 type, 뒤쪽은 (view단으로 넘어올)파라메터 명으로 URL을 선언한다. (이전 방식은 정규표현식으로 되어 있어 직관적으로 선언하기 어렵다)
+
+지금 우리가 하려는건 List의 id를 path variable로 지정하려는 것이므로 동일한 방식으로 선언하면 된다.
+
+#### [superlists/urls.py](./06-06/superlists/superlists/urls.py)
+
+url을 변경했으니 테스트를 돌려보자. 에러가 바뀌었고 에석하게 1개 에러가 더 생겼다.
+
+```sh
+TypeError: view_list() got an unexpected keyword argument 'list_id'
+```
+
+이 말은 `view_list` 에 argument가 필요하다는 의미이다. 장고는 path variable의 값을 함수의 파라메터로 받는다. 이걸 고쳐보자. 그리고 기왕 한 김에 List id 에 맞는 리스트조회도 할수 있도록 변경하자.
+
+```py
+[...]
+- def view_list(request):
++ def view_list(request, list_id):
+[...]
+```
+
+다시 테스트를 돌려보면 다른 에러가 난다.
+
+```sh
+
+AssertionError: 1 != 0 : Response should not contain '다른 목록 아이템 1'
+```
+
+곰곰히 생각해보면 `view_list`는 현재 모든 아이템을 표시하기 때문에 생기는 문제임을 알수 있다.
+해당 list에 맞는 item만 조회하도록 로직을 변경하자.
+
+```py
+[...]
+def view_list(request, list_id):
++   list_ = List.objects.get(id=list_id)
++   items = Item.objects.filter(list=list_)
+-   items = Item.objects.all()
+    return render(request, 'list.html', {'items': items})
+[...]
+```
+
+#### [lists/views.py](./06-06/superlists/lists/views.py)
+
+테스트 결과는 1개만 실패로 남는다.
+
+```
+======================================================================
+FAIL: test_home_page_redirects_after_POST (lists.tests.NewListTest)
+----------------------------------------------------------------------
+AssertionError: 404 != 200 : Couldn't retrieve redirection page '/lists/the-only-list-in-the-world/': response code was 404 (expected 200)
+```
+
+### 새로운 세상으로 가기 위한 new_list 수정
+
+이제 마지막 실패를 고쳐야 한다. 왜 실패가 생긴걸까?
+
+조금만 더 코드를 거슬러 올라가 살펴보면 `new_list` 뷰가 새로 생긴 리스트 화면으로 리다이렉트를 한다. 
+
+그러나 그 리다이렉트 URL이 방금 막 개발한 고유 URL 체계가 아닌  `/lists/the-only-list-in-the-world/` 로 고정되어 있다. 아직 맞게 고치지 않은 것이다.
+
+그리고 테스트도 마찬가지로 `/lists/the-only-list-in-the-world/`를 기대값으로 가지고 있다. 새로운 기능에 따라 업데이트가 필요하다.
+
+책 저자의 TDD 원칙대로 테스트 부터 고쳐보자.
+
+```py
+
+    def test_home_page_redirects_after_POST(self):
+        response = self.client.post(
+            '/lists/new',
+            data={'item_text': '신규 작업 아이템'}
+            )
+-        self.assertEqual(response.status_code, 302)
+-        self.assertRedirects(response, '/lists/the-only-list-in-the-world/')
++        new_list = List.objects.first()
++        self.assertRedirects(response, f'/lists/{new_list.id}/')
+```
+
+테스트를 돌려보면 아직 통과 하지 않는다. view 단을 고쳐보자.
+
+#### [lists/views.py](./06-06/superlists/lists/views.py)
+
+```py
+[...]
+def new_list(request):
+    _list = List.objects.create()
+    Item.objects.create(text=request.POST['item_text'], list=_list)
+-    return redirect('/lists/the-only-list-in-the-world/')
++    return redirect(f'/lists/{_list.id}/')
+
+```
+
+이제 모든 단위 테스트가 통과한다. 
+
+다시 기능 테스트로 돌아가보자.
+
+```sh
+$ python manage.py test functional_tests
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (functional_tests.tests.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/superlists/functional_tests/tests.py", line 48, in test_can_start_a_list_and_retrieve_it_later
+    self.assertRegex(edith_list_url, '/lists/.+')
+AssertionError: Regex didn't match: '/lists/.+' not found in 'http://localhost:53797/'
+```
+
+다른 에러가 발생했다. 원래는 실패가 없었는데 기능추가/변경에 따라 없던 실패가 발생하는 것을 **애플리케이션 퇴행**이 발생했다고 한다.
+
+현재 모든 아이템을 새로 만들때마다 하나의 목록을 만들기 때문에 에러가 발생하고 있다. 
+
+일단 한가지 문제를 해결했으므로 작업 메모장 목록을 하나 지운다.
+
+### 작업 메모장
+
+- [x] ~~FT가 끝난 후에 결과물을 제거한다~~
+- [x] ~~모델을 조정해서 아이템들이 다른 목록과 연계되도록 한다~~
+- [x] ~~각 목록별 고유 URL을 추가한다~~
+- [x] ~~POST를 이용해서 새로운 목록을 생성하는 URL을 추가한다~~
+- [ ] POST를 이용해서 새로운 아이템을 기존 목록에 추가하는 URL을 만든다.
