@@ -1412,3 +1412,25 @@ Ran 10 tests in 0.039s
 OK
 ```
 
+그리고 FT도 통과한다.
+
+```py
+$ python manage.py test functional_tests
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+.
+----------------------------------------------------------------------
+Ran 1 test in 9.369s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+### 작업 메모장
+
+- [x] ~~FT가 끝난 후에 결과물을 제거한다~~
+- [x] ~~모델을 조정해서 아이템들이 다른 목록과 연계되도록 한다~~
+- [x] ~~각 목록별 고유 URL을 추가한다~~
+- [x] ~~POST를 이용해서 새로운 목록을 생성하는 URL을 추가한다~~
+- [x] ~~POST를 이용해서 새로운 아이템을 기존 목록에 추가하는 URL을 만든다.~~
+- [ ] urls.py 에 있는 중복 코드를 리팩터링한다.
