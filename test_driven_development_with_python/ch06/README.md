@@ -1207,3 +1207,208 @@ AssertionError: Regex didn't match: '/lists/.+' not found in 'http://localhost:5
 - [x] ~~각 목록별 고유 URL을 추가한다~~
 - [x] ~~POST를 이용해서 새로운 목록을 생성하는 URL을 추가한다~~
 - [ ] POST를 이용해서 새로운 아이템을 기존 목록에 추가하는 URL을 만든다.
+
+## 기존 목록에 아이템을 추가하기 위한 또 다른 뷰 (예제 : [06-07](./06-07))
+
+(신규 목록이 아닌) 기존 목록에 신규 아이템을 추가하기 위한 URL과 뷰를 추가해보자.
+
+### [lists/tests.py](./06-07/superlists/lists/tests.py)
+
+먼저 테스트를 추가해보자.
+
+```py
+class NewItemTest(TestCase):
+    def test_can_save_a_POST_request_to_an_existing_list(self):
+        other_list = List.objects.create()
+        correct_list = List.objects.create()
+
+        self.client.post(
+            f'list/{correct_list.id}/add_item',
+            data={'item_text': '기존 목록에 신규 아이템'}
+        )
+
+        self.assertEqual(Item.objects.count(), 1)
+        new_item = Item.objects.first()
+        self.assertEqual(new_item.text, '기존 목록에 신규 아이템')
+        self.assertEqual(new_item.list, correct_list)
+
+    def test_redirects_to_list_view(self):
+        other_list = List.objects.create()
+        correct_list = List.objects.create()
+
+        self.client.post(
+            f'list/{correct_list.id}/add_item',
+            data={'item_text': '기존 목록에 신규 아이템'}
+        )
+
+        self.assertRedirects(response, f'/lists/{correct_list.id}/')
+```
+
+결과는 의도적인 실패가 나온다.
+
+```sh
+======================================================================
+FAIL: test_can_save_a_POST_request_to_an_existing_list (lists.tests.NewItemTest)
+----------------------------------------------------------------------
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_redirects_to_list_view (lists.tests.NewItemTest)
+----------------------------------------------------------------------
+AssertionError: 404 != 302 : Response didn't redirect as expected: Response code was 404 (expected 302)
+```
+
+### 마지막 신규 URL
+
+404(Not Found)는 URL 경로가 없다는 의미다. URL을 만들어보자.
+
+
+#### [superlists/urls.py](./06-07/superlists/superlists/urls.py)
+
+```py
+urlpatterns = [
+    path('', home_views.home_page, name='home'),
+    path('lists/<int:list_id>/', home_views.view_list, name='view_list'),
+    path('lists/new', home_views.new_list, name='new_list'),
++    path('lists/<int:list_id>/add_item', home_views.add_item, name='add_item'),
+    # path('admin/', admin.site.urls), 
+]
+```
+
+다시 테스트를 실행하면 `add_item` 뷰가 없다는 에러가 나온다.
+
+```sh
+AttributeError: module 'lists.views' has no attribute 'add_item'
+```
+
+뷰도 추가해주자.
+```py
+def add_item(request):
+    pass
+```
+
+다시 테스트를 돌려보면 뷰에 `list_id` 파라메터가 필요하다고 한다. 
+
+```sh
+TypeError: add_item() got an unexpected keyword argument 'list_id'
+```
+
+추가해 주자
+
+```py
+def add_item(request, list_id):
+    pass
+```
+
+테스트는 다음과 같다. 뷰의 return 값이 필요하다.
+
+```sh
+ValueError: The view lists.views.add_item didn't return an HttpResponse object. It returned None instead.
+```
+
+```py
+def add_item(request, list_id):
+    return redirect(f'/lists/{list_.id}/')
+```
+
+다시 테스트를 돌려보면 리다이렉트 체크 테스트는 통과하고, 아이템 갯수만 실패로 남는다.
+
+마지막으로 신규 아이템 저장 작업을 추가한다.
+
+#### [lists/views.py](./06-07/superlists/lists/views.py)
+
+```py
+def add_item(request, list_id):
+    list_ = List.objects.get(id=list_id)
+    return redirect(f'/lists/{_list.id}')
+```
+
+돌려보면 드디어 추가된 테스트 모두 통과한다.
+
+```sh
+Ran 9 tests in 0.034s
+
+OK
+```
+
+### 폼에서 URL을 사용하는 방법
+
+이제 현재 작업 목록에 아이템을 추가하는 form 테그를 만들면 UI에서 추가가 가능해진다.
+
+#### [lists/templates/list.html](./06-07/superlists/lists/templates/list.html)
+
+```html
+-        <form method="POST" action="/">
++        <form method="POST" action="/lists/{{ list.id }}/add_item">
+            <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">
+            {% csrf_token %}
+        </form>
+```
+
+추가된 actions가 잘 동작하려면 뷰가 목록을 템플릿에게 전달하는 코드가 필요하다.
+
+이것을 확인화기 위해 ListViewTest에 테스트를 추가하자.
+
+#### [lists/tests.py](./06-07/superlists/lists/tests.py)
+
+```py
+class ListViewTest(TestCase):
+    [...]
+    def test_passes_correct_list_to_template(self):
+        other_list = List.objects.create()
+        correct_list = List.objects.create()
+        response = self.client.get(f'/lists/{correct_list.id}/')
+        self.assertEqual(response.context['list'], correct_list)
+```
+
+테스트를 추가해서 돌려보면 다음과 같은 에러가 나온다.
+
+```sh
+KeyError: 'list'
+```
+
+list에 템플릿을 전달하고 있지 않기 때문이다. 이 부분을 해결해보자.
+
+```py
+def view_list(request, list_id):
+    list_ = List.objects.get(id=list_id)
+    items = Item.objects.filter(list=list_)
+-    return render(request, 'list.html', {'items': items})
++    return render(request, 'list.html', {'list': list_})
+```
+
+테스트가 또 다른 에러를 뱉어낸다.
+
+```sh
+AssertionError: False is not true : Couldn't find 'itemey 1' in response
+```
+
+템플릿에는 item도 표시해줘야 하는데 반영이 되지 않았기 때문이다. 이것도 변경해준다.
+
+#### [lists/templates/list.html](./06-07/superlists/lists/templates/list.html)
+
+```html
+
+        <table id="id_list_table">
+-            {% for item in items %}
++            {% for item in list.item_set.all %}
+                <tr><td>{{forloop.counter}}: {{ item.text }}</td></tr>
+            {% endfor %}
+        </table>
+```
+
+리스트에 속한 item은 장고 ORM 기본으로 .item_set 형식으로 불러올 수 있다.
+
+이 내용은 다음 링크를 참조하자.
+
+https://docs.djangoproject.com/en/2.2/topics/db/queries/#many-to-many-relationships
+
+이제 단위 테스트는 완료되었다.
+
+```sh
+$ python manage.py test lists
+Ran 10 tests in 0.039s
+
+OK
+```
+
