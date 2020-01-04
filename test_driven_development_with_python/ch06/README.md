@@ -1426,6 +1426,10 @@ OK
 Destroying test database for alias 'default'...
 ```
 
+마지막으로 `superlists/urls.py` 코드를 보면 `lists/` 로 URL이 중복되어 설정되어 있는 것을 볼 수 있다.
+
+이것 또한 리팩터링을 하고 가자.
+
 ### 작업 메모장
 
 - [x] ~~FT가 끝난 후에 결과물을 제거한다~~
@@ -1434,3 +1438,72 @@ Destroying test database for alias 'default'...
 - [x] ~~POST를 이용해서 새로운 목록을 생성하는 URL을 추가한다~~
 - [x] ~~POST를 이용해서 새로운 아이템을 기존 목록에 추가하는 URL을 만든다.~~
 - [ ] urls.py 에 있는 중복 코드를 리팩터링한다.
+
+## URL includes를 이용한 마지막 리팩터링 (예제 : [06-08](./06-08))
+
+장고는 URL 설정을 계층적으로 설정 가능하다.
+
+- 전체 사이트(프로젝트 단위)의 URL
+- 장고 앱 단위 URL
+
+이제 리펙토링을 해서 URL 설정 또한 중복없이 만들자.
+
+먼저 설정을 용이하게 하기 위해 urls.py 파일을 복사해 lists 앱 내에 넣는다.
+```sh
+$ cp superlists/urls.py lists/
+```
+
+`superlists/urls.py` 에 lists/urls.py 를 사용할 수 있도록 코드를 변경한다.
+
+```py
+-from django.urls import path
++from django.urls import path, include
+
+[..]
+
+urlpatterns = [
+    path('', home_views.home_page, name='home'),
++    path('lists/', include('lists.urls'))
+-    path('lists/<int:list_id>/', home_views.view_list, name='view_list'),
+-    path('lists/<int:list_id>/add_item', home_views.add_item, name='add_item'),
+    path('lists/new', home_views.new_list, name='new_list'),
+    # path('admin/', admin.site.urls), 
+]
+
+```
+
+`django.urls.include` 는 자신의 인자로 전달된 path에 속한 urls.py 설정을 장고에 등록한다.
+
+다음은 lists/urls.py 코드이다.
+
+```py
+from django.contrib import admin
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('<int:list_id>/', views.view_list, name='view_list'),
+    path('<int:list_id>/add_item', views.add_item, name='add_item'),
+    path('new', views.new_list, name='new_list'),
+]
+```
+
+include 에서 url을 설정한 `lists/` 가 일단 앞에 붙고 뒤에 path들이 함께 설정된다.
+
+예) `<int:list_id>/` 는 `lists/<int:list_id>/` 로 path가 설정.
+
+자 이제 전체 테스트를 실행해 보자
+
+```sh
+ python manage.py test
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 11.163s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+모든 테스트가 통과 되었다. 리펙토링도 완성되었음을 알수 있다.
