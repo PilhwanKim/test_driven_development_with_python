@@ -5,7 +5,7 @@
 이번장에 남은 일들
 
 - 기능 테스트 후 남은 흔적(data) 제거
-- 시스템이 하나의 목록만 지원하는 문제
+- 시스템이 하나의 목록만 지원하는 문제 해결
 
 ## 기능 테스트 내에서 테스트 격리(예제 : [06-01](./06-01))
 
@@ -22,7 +22,7 @@
 2. 기능 테스트를 위한 개발 서버를 가동
 3. manage.py test 명령으로 실행 가능함
 
-두 가지 해결방식중 LiveServerTestCase를 기능 테스트에 적용해보도록 한다
+두 가지 해결방식 중 LiveServerTestCase를 기능 테스트에 적용해보도록 한다
 
 먼저 functional_tests.py를 장고 functional_tests 앱의 tests.py 로 이동시키는 작업을 해 보자.
 
@@ -1455,6 +1455,8 @@ $ cp superlists/urls.py lists/
 
 `superlists/urls.py` 에 lists/urls.py 를 사용할 수 있도록 코드를 변경한다.
 
+### [superlists/urls.py](./06-08/superlists/superlists/urls.py)
+
 ```py
 -from django.urls import path
 +from django.urls import path, include
@@ -1475,6 +1477,8 @@ urlpatterns = [
 `django.urls.include` 는 자신의 인자로 전달된 path에 속한 urls.py 설정을 장고에 등록한다.
 
 다음은 lists/urls.py 코드이다.
+
+### [lists/urls.py](./06-08/superlists/lists/urls.py)
 
 ```py
 from django.contrib import admin
