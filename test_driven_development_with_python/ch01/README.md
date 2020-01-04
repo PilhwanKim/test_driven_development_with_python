@@ -1,15 +1,25 @@
 # 1장 기능 테스트를 이용한 Django 설치
 
-## Testing Goat
+
+## 테스팅 고트님께 복종하라! 테스트가 없으면 아무것도 하지 마라!(예제 : [01-01](/01-01))
+
+### Testing Goat
 
 - 염소가 소리친다. "테스트를 먼저 해! 테스트를 먼저 하라고!"
 - 사실 개발할 때는 잠시 테스트가 생각이 나지만 귀차니즘 + 시간부족에 초조함 등의 복합적인 생각이 들어 실천하지 않는 경우가 많다.
 - 먼저 테스트를 작성한 후 실행 -> 예상대로 실패하는지 확인 -> 실제 코드 작성 ->  테스트 작성 2 -> (무한 반복...)
 - 염소는 1번에 1가지만 행동 함.
 
-## 실전 - Django를 이용한 애플리케이션 개발
+### [functional_test.py](./01-01/functional_test.py)
 
-[첫번째 예제 보기](./01-01/functional_test.py)
+```py
+from selenium import webdriver
+
+browser = webdriver.Firefox()
+browser.get('http://localhost:8000')
+
+assert 'Django' in browser.title
+```
 
 - 첫 단계 : Django가 제대로 설치되었는지 확인
   - Django 개발 서버 가동
@@ -39,9 +49,9 @@ $ python3 functional_test.py
 Traceback (most recent call last):
   File "functional_test.py", line 3, in <module>
     browser = webdriver.Firefox()
-  File "/Users/pilhwankim/.pyenv/versions/tdd-with-python-env/lib/python3.7/site-packages/selenium/webdriver/firefox/webdriver.py", line 164, in __init__
+  File "/lib/python3.7/site-packages/selenium/webdriver/firefox/webdriver.py", line 164, in __init__
     self.service.start()
-  File "/Users/pilhwankim/.pyenv/versions/tdd-with-python-env/lib/python3.7/site-packages/selenium/webdriver/common/service.py", line 83, in start
+  File "/lib/python3.7/site-packages/selenium/webdriver/common/service.py", line 83, in start
     os.path.basename(self.path), self.start_error_message)
 selenium.common.exceptions.WebDriverException: Message: 'geckodriver' executable needs to be in PATH.
 ```
@@ -53,7 +63,17 @@ selenium.common.exceptions.WebDriverException: Message: 'geckodriver' executable
 
 나는 파이어 폭스를 쓰긴(설치하긴) 싫으므로 예제를 변경했다.
 
-[변경한 테스트 예제](./01-02/functional_test.py)
+[변경한 functional_test.py](./01-02/functional_test.py)
+
+```py
+from selenium import webdriver
+
+-browser = webdriver.Firefox()
++browser = webdriver.Chrome('chromedriver')
+browser.get('http://localhost:8000')
+
+assert 'Django' in browser.title
+```
 
 검색을 통해 드라이버를 인스톨하고 실행하는 법을 찾았다.
 
@@ -72,6 +92,8 @@ AssertionError
 ```
 
 ![크롬 화면](./ch01-01.png)
+
+## Django 가동 및 실행(예제 : [01-03](/01-03))
 
 이제 Django 웹 서비스를 실제로 띄워 볼 차레이다. 이런 문제를 해결하는 과정 자체가 TDD라고 생각한다.
 
@@ -109,9 +131,11 @@ python functional_test.py
 
 ![테스트 성공](./ch01-02.png)
 
-사실 직접 크롬을 띄우고 localhost:8000 을 입력한 것을 자동화 한 것 밖에는 없지만 저자가 이 장을 이렇게 장황하게 만든건 의미가 있다고 본다.
+사실 직접 크롬을 띄우고 `localhost:8000` 을 입력한 것을 자동화 한 것 밖에는 없다.
+
+그러나 저자가 이 장을 이렇게 장황하게 설명한 것은 2가지 의미가 있다고 생각한다.
 
 1. Testing Goat 를 설명하면서 TDD의 기본적인 전제를 확실히 익히려는 의도
 2. TDD는 프로젝트 시작하는 순간부터 가능하다는 것을 보여주려는 의도
 
-아무튼 첫번째 장을 마쳤다. 어떤 고급진 스킬이 있는 장은 아니지만 이 책의 저자에게는 바둑의 포석과 같은 1장이 아니었나 생각한다.
+아무튼 첫번째 장을 마쳤다. 고급 내용이 있는 장은 아니지만 이 책의 저자에게는 바둑의 포석 같은 1장이 아니었나 생각한다.
