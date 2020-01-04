@@ -1,8 +1,8 @@
-# 파이썬을 이용한 클린 코드를 위한 테스트 주도 개발
+# (파이썬을 이용한) 클린 코드를 위한 테스트 주도 개발
 
 ## 설치
 
-pyenv-virtualenv, direnv 가 설치되어 있다는 가정하에 시작
+pyenv-virtualenv, direnv 가 설치되어 있다는 가정하에 시작한다
 
 ```sh
 # python 3.7 설치
