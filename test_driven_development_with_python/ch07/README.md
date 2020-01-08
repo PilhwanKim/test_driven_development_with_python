@@ -102,3 +102,98 @@ AssertionError: 64.0 != 512 within 10 delta (448.0 difference)
 이렇게 편법으로는 이제 통하지 않는다는 생각이 들 것이다.
 
 편법으로 설계된 `<p style="tex-align: center">` 는 다시 원상복귀 한다.
+
+## 멋있게 만들기: CSS 프레임워크 이용(예제 : [07-02](./07-02))
+
+- 웹 페이지 디자인에 문외한인 개발자들의 대안 = CSS 프레임워크
+- 부트스트랩(Bootstrap) = 가장 많이 사용
+
+바로 적용해 보자. (최대한 책과 동일환경 동작하게 3버전을 사용)
+
+```sh
+$ wget -O bootstrap.zip https://github.com/twbs/bootstrap/releases/download/v3.3.2/bootstrap-3.3.2-dist.zip
+$ unzip bootstrap.zip
+$ mkdir lists/static
+$ mv bootstrap-3.3.2-dist lists/static/bootstrap
+$ rm bootstrap.zip
+```
+
+작업후 폴더는 다음과 같이 위치해야 한다.
+
+```sh
+lists
+├── __init__.py
+├── admin.py
+├── apps.py
+├── migrations
+│   ├── 0001_initial.py
+│   ├── 0002_item_text.py
+│   ├── 0003_list.py
+│   ├── 0004_item_list.py
+│   └── __init__.py
+├── models.py
+├── static
+│   └── bootstrap
+│       ├── css
+│       │   ├── bootstrap-theme.css
+│       │   ├── bootstrap-theme.css.map
+│       │   ├── bootstrap-theme.min.css
+│       │   ├── bootstrap.css
+│       │   ├── bootstrap.css.map
+│       │   └── bootstrap.min.css
+│       ├── fonts
+│       │   ├── glyphicons-halflings-regular.eot
+│       │   ├── glyphicons-halflings-regular.svg
+│       │   ├── glyphicons-halflings-regular.ttf
+│       │   ├── glyphicons-halflings-regular.woff
+│       │   └── glyphicons-halflings-regular.woff2
+│       └── js
+│           ├── bootstrap.js
+│           ├── bootstrap.min.js
+│           └── npm.js
+├── templates
+│   ├── home.html
+│   └── list.html
+├── tests.py
+├── urls.py
+└── views.py
+```
+
+부트스트랩의 온라인 공식 문서(http://bootstrapk.com/getting-started/#template)에 따라, HTML 템플릿에 다음과 같이 적용 가능하다.
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- 위 3개의 메타 태그는 *반드시* head 태그의 처음에 와야합니다; 어떤 다른 콘텐츠들은 반드시 이 태그들 *다음에* 와야 합니다 -->
+    <title>부트스트랩 101 템플릿</title>
+
+    <!-- 부트스트랩 -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- IE8 에서 HTML5 요소와 미디어 쿼리를 위한 HTML5 shim 와 Respond.js -->
+    <!-- WARNING: Respond.js 는 당신이 file:// 을 통해 페이지를 볼 때는 동작하지 않습니다. -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <h1>Hello, world!</h1>
+
+    <!-- jQuery (부트스트랩의 자바스크립트 플러그인을 위해 필요합니다) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <!-- 모든 컴파일된 플러그인을 포함합니다 (아래), 원하지 않는다면 필요한 각각의 파일을 포함하세요 -->
+    <script src="js/bootstrap.min.js"></script>
+  </body>
+</html>
+```
+
+이 프로젝트에 이미 두개의 HTML 템플릿을 가지고 있어서 각각 템플릿에 적용해야 한다.
+
+하지만 이러한 중복은 `Don't Repeat Yourself` 규칙에 위배된다.
+
+다행히 장고는 이런 템플릿 중복 문제해결 방안이 있다 - 템플릿 상속
