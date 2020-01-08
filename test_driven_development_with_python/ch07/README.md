@@ -159,7 +159,7 @@ lists
 └── views.py
 ```
 
-부트스트랩의 온라인 공식 문서(http://bootstrapk.com/getting-started/#template)에 따라, HTML 템플릿에 다음과 같이 적용 가능하다.
+부트스트랩의 [온라인 공식 문서](http://bootstrapk.com/getting-started/#template)에 따라, HTML 템플릿에 다음과 같이 적용 가능하다.
 
 ```html
 <!DOCTYPE html>
