@@ -197,3 +197,104 @@ lists
 하지만 이러한 중복은 `Don't Repeat Yourself` 규칙에 위배된다.
 
 다행히 장고는 이런 템플릿 중복 문제해결 방안이 있다 - 템플릿 상속
+
+## Django 템플릿 상속 (예제 : [07-03](./07-03))
+
+`home.html` 과 `list.html` 템플릿은 같은(중복된) 내용이 많다.
+
+```sh
+$ diff lists/templates/home.html lists/templates/list.html
+7,10c7,8
+<         <form method="POST" action="/lists/new">
+<             <p style="text-align: center">
+<                 <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">
+<             </p>
+---
+>         <form method="POST" action="/lists/{{ list.id }}/add_item">
+>             <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">
+12a11,16
+>
+>         <table id="id_list_table">
+>             {% for item in list.item_set.all %}
+>                 <tr><td>{{forloop.counter}}: {{ item.text }}</td></tr>
+>             {% endfor %}
+>         </table>
+```
+
+두 템플릿의 다른점은
+
+- form 이 다른 url 사용
+- list.html 은 table 요소가 포함
+
+이렇듯 다른점은 분리하고 공통점은 하나로 합치는 작업이 필요하다.
+
+먼저 공통 템플릿을 작성해보자. 먼저 기존 템플릿을 복사한다.
+
+```sh
+$ cp lists/templates/home.html lists/templates/base.html
+```
+
+여기다 자식 템플릿이 들어갈 장소를 뜻하는 `blocks` 를 설정한다.
+
+### [lists/templates/base.html](./07-03/superlists/lists/templates/base.html)
+
+```html
+<html>
+    <head>
+        <title>To-Do lists</title>
+    </head>
+    <body>
+        <h1>{% block header_text %} {% endblock %}</h1>
+        <form method="POST" action="{% block form_action %} {% endblock %}">
+            <p style="text-align: center">
+                <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">
+            </p>
+            {% csrf_token %}
+        </form>
+        {% block table %}
+        {% endblock %}
+    </body>
+</html>
+```
+
+이제 공통영역은 base.html 에서 담당한다.
+
+자식 템플릿(list.html, home.html) 은 blocks 에 해당하는 영역만 채우도록 변경한다.
+
+### [lists/templates/home.html](./07-03/superlists/lists/templates/home.html)
+
+```html
+{% extends 'base.html' %}
+
+{% block header_text %}To-Do{% endblock %}
+
+{% block form_action %}/lists/new{% endblock %}
+```
+
+### [lists/templates/list.html](./07-03/superlists/lists/templates/list.html)
+
+```html
+{% extends 'base.html' %}
+
+{% block header_text %}Your To-Do lists{% endblock %}
+
+{% block form_action %}/lists/{{ list.id }}/add_item{% endblock %}
+
+{% block table %}
+    <table id="id_list_table">
+        {% for item in list.item_set.all %}
+            <tr><td>{{forloop.counter}}: {{ item.text }}</td></tr>
+        {% endfor %}
+    </table>
+{% endblock %}
+```
+
+이제 변경한 내용이 잘 작동하는지 기능 테스트를 돌려서 확인하자.
+
+```sh
+$ python manage.py test functional_tests
+
+AssertionError: 64.0 != 512 within 10 delta (448.0 difference)
+```
+
+여전히 실패는 남았으나 이전에도 있던 실패이므로 템플릿 리팩토링은 성공했다.
