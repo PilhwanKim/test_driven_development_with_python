@@ -351,3 +351,94 @@ AssertionError: 64.0 != 512 within 10 delta (448.0 difference)
 FT 를 돌려보면 CSS 적용되지 않아 화면이 그대로인 것을 확인 할수 있다.
 
 왜 CSS 가 로딩되지 않는걸까?
+
+## Django의 정적 파일 (예제 : [07-05](./07-05))
+
+### 웹 서버에서 정적파일(Static File)을 다루는 2가지 고려사항
+
+1. URL이 정적 파일을 위한 것인지 뷰 함수를 경유해 제공되는 HTML을 위한 것인지 구분 할 수 있는가?
+2. 사용자가 원할 때 어디서 정적 파일을 찾을수 있는가?
+
+정적 파일은 특정 URL을 디스크상에 있는 파일과 매칭시키는 역할을 한다
+
+이 URL을 Django는 특정 URL의 접두사를 설정할 수 있다.
+
+#### [superlists/settings.py](./07-05/superlists/superlists/settings.py)
+
+```py
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/2.2/howto/static-files/
+
+STATIC_URL = '/static/'
+```
+
+Django 개발 서버(`manage.py runserver` 실행)는 실행시 각 장고앱의 하위 디렉토리들 중에 `static` 디렉토리 내용들을 전부 찾는다. 
+
+그리고 그 찾은 정적 파일들을 `STATIC_URL` 하위에 있는 것처럼 기능한다.
+
+그래서 실제 웹의 href path는 다르게 설정해야 한다.(Django 가 가리키는 path 체계를 따라야 한다.)
+
+자 이제 css 링크가 되게 해보자.
+
+#### [lists/templates/base.html](./07-05/superlists/lists/templates/base.html)
+
+```html
+        <meta name="viewport" content="width=device-width, initial-sacle=1.0">
+-        <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
++        <link href="static/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    </head>
+```
+
+변경된 내용을 보면 이해가 될 것이다.
+
+`STATIC_URL` 설정에 따라 장고 앱의 모든 정적파일들은 `/static/` URL 로 시작하는 path를 갖게 되는 것이다.
+
+실제로 수동으로 접속해서 확인해 보자.
+
+```sh
+$ python manage.py runserver
+```
+
+![CSS 가 적용된 사이트 모습](./ch07-01.png)
+
+### StaticLiveServerTestCase로 교체하기
+
+변경후에 FT를 실행해보면 다음과 같이 실패한다.
+
+```sh
+TypeError: expected str, bytes or os.PathLike object, not NoneType
+```
+
+`runsever`가 자동으로 정적파일을 찾지만 `LiveServerTestCase`는 그렇지 못하기 때문에 발생한다.
+
+테스트에서 `runserver`와 같이 자동으로 정적 파일을 찾아주는 테스트 클래스가 있다.
+
+`StaticLiveServerTestCase`이다. 이걸로 FT도 교체해보자.
+
+#### [functional_tests/tests.py](./07-05/superlists/functional_tests/tests.py)
+
+```py
+-from django.test import LiveServerTestCase
++from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+
+-class NewVisitorTest(LiveServerTestCase):
++class NewVisitorTest(StaticLiveServerTestCase):
+
+```
+
+변경후에 FT 를 실행해보자.
+
+```sh
+$ python manage.py test functional_tests
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+..
+----------------------------------------------------------------------
+Ran 2 tests in 14.083s
+
+OK
+```
+
+OK~! 테스트가 통과한다.
