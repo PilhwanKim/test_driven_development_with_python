@@ -43,6 +43,8 @@ pip install -r requirements.txt
 
 ## 2부 웹 개발 핵심편
 
+[7장 멋있게 만들기: 레이아웃, 스타일링, 테스트](./ch07/README.md)
+
 ## 3부 고급편
 
 ## 부록 테스트 고트님께 복종하라
