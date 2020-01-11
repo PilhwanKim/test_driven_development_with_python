@@ -298,3 +298,56 @@ AssertionError: 64.0 != 512 within 10 delta (448.0 difference)
 ```
 
 여전히 실패는 남았으나 이전에도 있던 실패이므로 템플릿 리팩토링은 성공했다.
+
+## 부트스트랩 통합하기 (예제 : [07-04](./07-04))
+
+### 부트스트랩 CSS 적용
+
+#### [lists/templates/base.html](./07-04/superlists/lists/templates/base.html)
+
+```html
+<html>
+    <head>
+        <title>To-Do lists</title>
++        <meta name="viewport" content="width=device-width, initial-sacle=1.0">
++        <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+    </head>
+[...]
+```
+
+### 행(row)과 열(columns)
+
+부트스트랩의 [그리드 시스템](http://bootstrapk.com/css/#grid)을 도입해 input, form, table 의 위치도 정리해보도록 하자.
+
+#### [lists/templates/base.html](./07-04/superlists/lists/templates/base.html)
+
+```html
+[...]
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6 col-md-offset-3">
+                    <div class="text-center">
+                        <h1>{% block header_text %} {% endblock %}</h1>
+                        <form method="POST" action="{% block form_action %} {% endblock %}">
+                            <p style="text-align: center">
+                                <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">
+                            </p>
+                            {% csrf_token %}
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            {% block table %}
+            {% endblock %}
+        </div>
+    </body>
+</html>
+```
+
+FT 를 돌려보면 CSS 적용되지 않아 화면이 그대로인 것을 확인 할수 있다.
+
+왜 CSS 가 로딩되지 않는걸까?
