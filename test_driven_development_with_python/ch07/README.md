@@ -442,3 +442,100 @@ OK
 ```
 
 OK~! 테스트가 통과한다.
+
+## 부트스트랩 컴포넌트를 이용한 사이트 외형 개선 (예제 : [07-06](./07-06))
+
+TO-DO 앱을 잘 꾸며보자.
+
+### 점보트론
+
+이렇게 생겼다. 특정 콘텐츠(메인 페이지와 해더)를 강조할 때 쓴다.
+
+![점보트론 예제](./ch07-02.png)
+
+#### [lists/templates/base.html](./07-06/superlists/lists/templates/base.html)
+
+```html
+    <body>
+        <div class="container">
+            <div class="row">
+-                <div class="col-md-6 col-md-offset-3">
++                <div class="col-md-6 col-md-offset-3 jumbotron">
+                    <div class="text-center">
+                        <h1>{% block header_text %} {% endblock %}</h1>
+                        <form method="POST" action="{% block form_action %} {% endblock %}">
+```
+
+### 큰 입력 상자
+
+강조는 되었지만 입력상자가 작다. 부트스트랩의 `form-control` 클래스를 적용하면 크게 만들수 있다.
+
+#### [lists/templates/base.html](./07-06/superlists/lists/templates/base.html)
+
+```html
+<form method="POST" action="{% block form_action %} {% endblock %}">
+    <p style="text-align: center">
+-        <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력">
++        <input name="item_text" id="id_new_item" placeholder="작업 아이템 입력" class="form-control input-lg">
+    </p>
+    {% csrf_token %}
+</form>
+
+```
+
+### 테이블 스타일링
+
+테이블의 글자도 너무 작다. `table` 클래스를 적용해 개선하자.
+
+#### [lists/templates/list.html](./07-06/superlists/lists/templates/list.html)
+
+```html
+-    <table id="id_list_table">
++    <table id="id_list_table" class="table">
+        {% for item in list.item_set.all %}
+            <tr><td>{{forloop.counter}}: {{ item.text }}</td></tr>
+        {% endfor %}
+    </table>
+```
+
+## 사용자 지정 CSS 사용하기 (예제 : [07-06](./07-06))
+
+마지막으로 타이틀과 입력 상자 사이에 간격을 만들어보자. CSS 를 직접 지정해야 한다.
+
+#### [lists/templates/base.html](./07-06/superlists/lists/templates/base.html)
+
+```html
+    <head>
+        <title>To-Do lists</title>
+        <meta name="viewport" content="width=device-width, initial-sacle=1.0">
+        <link href="static/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
++        <link href="static/base.css" rel="stylesheet" media="screen">
+    </head>
+```
+
+#### [lists/static/base.css](./07-06/superlists/lists/static/base.css)
+
+```css
+#id_new_item {
+    margin-top: 2ex;
+}
+```
+
+다 적용했으면 최종 결과를 `manage.py runserver`로 확인해보자.
+
+![7장 최종 결과](./ch07-03.png)
+
+그리고 변경사항이 있으니 테스트로 제대로 동작하는지 확인하자.
+
+```sh
+$ python manage.py test functional_tests
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+..
+----------------------------------------------------------------------
+Ran 2 tests in 14.300s
+
+OK
+```
+
+모든 변경사항이 문제없음을 확인했다.
