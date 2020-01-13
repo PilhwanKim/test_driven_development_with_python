@@ -539,3 +539,102 @@ OK
 ```
 
 모든 변경사항이 문제없음을 확인했다.
+
+## collectstatic과 다른 정적 디렉터리 (예제 : [07-07](./07-07))
+
+#### Django 개발 서버 static 폴더를 찾아서 제공하는 것
+
+- 편하지만
+- 성능이 떨어짐
+
+#### 실제 운영 서버에서는
+
+- 따로 웹서버(Nginx, Apache)에 저장해서 제공
+- CDN에 업로드후 호스팅
+
+이런 이유 때문에 프로젝트에 퍼져있는(앱 단위) 정적 파일을 한곳에 모아 배포해야 할 일이 생김
+
+이 작업을 `manage.py collectstatic` 명령이 한다.
+
+이 정적파일들이 모이는 path는 settings.py 의 `STATIC_ROOT` 이다.
+
+책의 예제와 동일하게 `superlists` 프로젝트 루트 디렉토리와 동일 선상에 만들었다.
+
+```sh
+workspace
+├── static
+└── superlists
+    ├── db.sqlite3
+    ├── functional_tests
+    │   ├── __init__.py
+    │   ├── __pycache__
+    │   │   ├── __init__.cpython-37.pyc
+    │   │   └── tests.cpython-37.pyc
+    │   └── tests.py
+    ├── lists
+    │   ├── __init__.py
+```
+
+#### [superlists/settings.py](./07-07/superlists/superlists/settings.py)
+
+```py
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/2.2/howto/static-files/
+
+STATIC_URL = '/static/'
++ STATIC_ROOT = os.path.abspath(os.path.join(BASE_DIR, '../static'))
+```
+
+`BASE_DIR` 은 장고에서 기본으로 제공하는 세팅인데, 프로젝트 루트를 가리킨다.
+
+이제 `collectstatic` 명령을 내려보자.
+
+```sh
+$ python manage.py collectstatic
+
+134 static files copied to '/workspace/07-07/static'.
+```
+
+`tree` 명령어로 확인해보면 `workspace/static` 에 모든 정적파일이 합쳐졌다.
+
+```sh
+$ tree
+.
+├── static
+│   ├── admin
+│   │   ├── css
+│   │   │   ├── autocomplete.css
+[...]
+└── superlists
+    ├── db.sqlite3
+    ├── functional_tests
+    │   ├── __init__.py
+[...]
+```
+
+현재 기본앱인 `django admin` 의 정적파일까지 복사하고 있는데 아직 필요치 않으므로 제거하고 정적파일을 다시 모으자.
+
+#### [superlists/settings.py](./07-07/superlists/superlists/settings.py)
+
+```py
+INSTALLED_APPS = [
+-    'django.contrib.admin',
++#    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'lists',
+]
+```
+
+```sh
+$ rm -rf ../static
+$ python manage.py collectstatic --no-input
+
+15 static files copied to '/workspace/static'.
+```
+
+다음장에서 이렇게 모은 정적파일을 사용하는 방법과 테스트하는 방법을 배운다.
