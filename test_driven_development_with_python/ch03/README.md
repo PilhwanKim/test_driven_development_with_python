@@ -19,7 +19,27 @@ $ python manage.py startapp lists
 
 실행하면 superlists/superlists 와 동일 위치에 spuerlists/lists 라는 폴더가 생성된다.
 
-![새로 생긴 장고 앱](./ch03-01.png)
+```sh
+$ tree
+superlists
+├── functional_test.py
+└── superlists
+    ├── lists
+    │   ├── __init__.py
+    │   ├── admin.py
+    │   ├── apps.py
+    │   ├── migrations
+    │   │   └── __init__.py
+    │   ├── models.py
+    │   ├── tests.py
+    │   └── views.py
+    ├── manage.py
+    └── superlists
+        ├── __init__.py
+        ├── settings.py
+        ├── urls.py
+        └── wsgi.py
+```
 
 ## 단위 테스트는 무엇이고, 기능 테스트와 어떤 차이가 있을까?
 
@@ -31,10 +51,12 @@ $ python manage.py startapp lists
 
 ### 테스트 작업 순서
 
+![테스트 순서](./ch03-01.png)
+
 1. 기능 테스트 작성 : 사용자 관점의 새로운 기능성 정의
 2. 기능 테스트 실패 - 하위단의 어떤 기능을 작성해야 통과할지 고민/설계
-  2-1. 단위 테스트 작성 : 기능테스트에서의 고민은 테스트로 작성
-  2-2. 단위 테스트 실패 : 테스트를 통과할 정도로 최소한의 코드 작성. 과정 2-1/2-2를 하나의 기능 테스트 완성될 때까지 반복
+   1. 단위 테스트 작성 : 기능테스트에서의 고민은 테스트로 작성
+   2. 단위 테스트 실패 : 테스트를 통과할 정도로 최소한의 코드 작성. 과정 2-1/2-2를 하나의 기능 테스트 완성될 때까지 반복
 3. 기능 테스트 재실행하여 통과하는지 확인. 실패시 과정 2로 돌아가서 다시 작성. 통과시 한가지 기능 완성
 
 즉 상위단(기능테스트) 를 먼저 작성후에 그 하위단(단위 테스트)을 잘게 쪼게서 테스트 함을 알수 있다.
@@ -105,7 +127,22 @@ Django는 **대체로** MVC(Model-View-Cotroller) 패턴을 따름
 1. URL의 루트("/")를 해석해서 특정 뷰 기능에 매칭시킬 수 있는가?
 2. 이 뷰 기능이 특정 HTML을 반환하게 해서 기능 테스트를 통과하는가?
 
-[첫 번째 테스트 코드](03-03/superlists/lists/tests.py)
+
+[lists/tests.py - 첫 단위 테스트 작성](03-03/superlists/lists/tests.py)
+
+```py
+from django.urls import resolve
+from django.test import TestCase
+from lists.views import home_page
+
+
+class HomePageTest(TestCase):
+    def test_root_url_resolves_to_home_page_view(self):
+        found = resolve('/')
+        self.assertEqual(found.func, home_page)
+```
+
+장고의 단위 테스트를 실행시켜 보자.
 
 ```sh
 $ python manage.py test
@@ -139,7 +176,14 @@ FAILED (errors=1)
 
 실패 테스트를 해결해 보자. 한번에 하나씩! 일단 import 에러를 해결한다.
 
-[view 구현 코드](03-04/superlists/lists/views.py)
+[lists/views.py - view 구현 코드](03-04/superlists/lists/views.py)
+
+```py
+from django.shortcuts import render
+
+# Create your views here.
+home_page = None
+```
 
 너무 단순하고 허무한 코드이기 한데, 저자의 의도는 이런거 같다.
 
@@ -185,6 +229,8 @@ Destroying test database for alias 'default'...
 
 책의 내용과 비슷하게 아래와 같이 urls.py 를 변경해 진행해보면
 
+[superlists/urls.py](03-05/superlists/superlists/urls.py)
+
 ```py
 from django.contrib import admin
 from django.urls import path
@@ -196,15 +242,17 @@ urlpatterns = [
 ]
 ```
 
+같은 단위 테스트 실행
+
 ```sh
 $ python manage.py test
 Creating test database for alias 'default'...
 Destroying test database for alias 'default'...
 Traceback (most recent call last):
 (...생략...)
-  File "/test_driven_development_with_python/ch03_Testing_a_Simple_Home_Page_with_Unit_Tests/03-05/superlists/superlists/urls.py", line 22, in <module>
+  File "../superlists/superlists/urls.py", line 22, in <module>
     path('/', lists.views.home_page, name='home'),
-  File "~/.pyenv/versions/tdd-with-python-env/lib/python3.7/site-packages/django/urls/conf.py", line 73, in _path
+  File "/lib/python3.7/site-packages/django/urls/conf.py", line 73, in _path
     raise TypeError('view must be a callable or a list/tuple in the case of include().')
 TypeError: view must be a callable or a list/tuple in the case of include().
 ```
@@ -213,7 +261,7 @@ urls.py 에 view와 url 매핑은 했으나,아직 lists.views.home_page 가 Non
 
 다시 lists/views.py 로 돌아가서 실제 view 를 함수로 구현해보자.
 
-[view 구현 코드](03-05/superlists/lists/views.py)
+[lists/views.py - view 구현 코드](03-05/superlists/lists/views.py)
 
 테스트를 실행해보면
 
@@ -236,7 +284,7 @@ Destroying test database for alias 'default'...
 - 이제 사이트 루트 요청에 실제 HTML 응답값을 반환하는 내용도 추가해야 함
 - 위의 내용을 검증하는 테스트 코드 추가가 먼저
 
-[tests 구현 코드](03-06/superlists/lists/tests.py)
+[lists/tests.py - tests 구현 코드](03-06/superlists/lists/tests.py)
 
 추가된 테스트는 요약하면 response body 텍스트가
 
@@ -357,7 +405,7 @@ Destroying test database for alias 'default'...
 이전에 개발했었던 기능 테스트(functional_test.py)를 다시 실행해보자!
 
 ```sh
-# shell을 2개 띄우고 한쪽에는 django 서버를 띄움 
+# shell을 2개 띄우고 한쪽에는 django 서버를 띄움
 $ python manage.py runserver
 
 # 다른 한쪽에서 기능 테스트 실행
@@ -382,7 +430,10 @@ unittest 결과는 실패로 나오지만 self.fail()가 실행되어 asserionEr
 
 ## 느낀점
 
-이 장에서 저자가 독자들이 깨닫기 원하는 핵심적인 내용은 **단위 테스트-코드 주기** 와  **최소한의 코드 변경** 이 아닌가 싶다. 
-사실 기능이나 코드 양으로 따지면 되게 적은 양인데 저렇게 까지 자주 테스트 해야하나? 라는 생각도 든다. 
-하지만 여기서 이렇게 세밀한 스텝을 언급하는 이유는 아마도 TDD가 어떤 것인지 실제 경험해 보기 위함이라는 생각이 든다. 
-한번에 한 가지씩! 한번에 아주 작은 스텝을 밟아나가기! 실제 TDD를 개발하는 방법이 이렇다는걸 잘 깨닫게 된 계기가 된 것 같다.
+이 장에서 저자가 독자들이 깨닫기 원하는 핵심적인 내용은 **단위 테스트-코드 주기** 와  **최소한의 코드 변경** 이라고 생각한다.
+
+아주 사소한 코드 변경인데 저렇게 까지 테스트를 자주 실행 해야하나? 라는 생각도 들었다.
+
+하지만 이렇게까지 세밀하게 개발 과정을 보여주는 이유는 아마도 TDD가 어떤 것인지 실제 경험해 보기 위함이라는 생각이 든다.
+
+한번에 한 가지씩! 한번에 아주 작은 스텝을 밟아나가기! 실제 TDD를 개발하는 방식이 이렇다는걸 느낀게 되었다.
