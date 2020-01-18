@@ -37,4 +37,126 @@
 8. 설정이 정상적으로 동작하면 스크립트를 작성하여 수동으로 했던 작업을 자동화 하도록 한다. 이를 통해 사이트 배포를 자동화 할 수 있다.
 9. 마지막으로, 동일 스크립트를 이용해서 운영 버전의 사이트를 실제 도메인에 배포하도록 한다.
 
-## TDD와 배포시 주의가 필요한 사항 (예제 : [08-01](./08-01))
+## 항상 그렇듯이 테스트부터 시작 (예제 : [08-01](./08-01))
+
+기능 테스트를 스테이징 사이트에서 실행되도록 하기
+
+테스트 임시 서버가 실행되는 주소를 변경
+
+### [functional_tests/tests.py](./08-01/superlists/functional_tests/tests.py)
+
+```py
+import sys
+
+[...]
+class NewVisitorTest(StaticLiveServerTestCase):
+    @classmethod
+    def setUpClass(cls):
+        for arg in sys.argv:
+            if 'liveserver' in arg:
+                cls.server_url = 'http://' + arg.split('=')[1]
+                return
+        super().setUpClass()
+        cls.server_url = cls.live_server_url
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.server_url == cls.live_server_url
+            super().tearDownClass()
+```
+
+`LiveServerTestCase`의 제약사항 - 자체 테스트 서버에서 샤용한다고 가정. 그래서 다음 변경사항 생김
+
+- `setUpClass` : `unittest` 제공. 전체 테스트 클래스 실행시 1번 먼저 실행. 전체 클래스에 테스트 설정 제공
+- `sys.argv`에 있는 `liveserver`라는 커맨드라인 인수를 찾음
+- 이 인수를 찾으면 `setUpClass` 를 건너뛰옥 스테이징 서버 URL을 `server_url` 변수에 저장
+
+따라서 `self.live_server_url` -> `self.server_url` 로 변경
+
+### [functional_tests/tests.py](./08-01/superlists/functional_tests/tests.py)
+
+```py
+@@ -19,7 +34,7 @@
+     def test_can_start_a_list_and_retrieve_it_later(self):
+         # 에디스(Edith)는 멋진 작업 목록 온라인 앱이 나왔다는 소식을 듣고
+         # 해당 웹 사이트를 확인하러 간다.
+-        self.browser.get(self.live_server_url)
++        self.browser.get(self.server_url)
+
+         # 웹 페이지 타이틀과 헤더가 'To-Do'를 표시하고 있다.
+         self.assertIn('To-Do', self.browser.title)
+@@ -69,7 +84,7 @@
+
+         # 프란시스가 홈페이지에 접속한다.
+         # 에디스의 리스트는 보이지 않는다.
+-        self.browser.get(self.live_server_url)
++        self.browser.get(self.server_url)
+         page_text = self.browser.find_element_by_tag_name('body').text
+         self.assertNotIn('공작깃털 사기', page_text)
+         self.assertNotIn('공작깃털을 이용해서 그물 만들기', page_text)
+@@ -94,7 +109,7 @@
+
+     def test_layout_and_styling(self):
+         # 에디스는 메인 페이지를 방문한다
+-        self.browser.get(self.live_server_url)
++        self.browser.get(self.server_url)
+         self.browser.set_window_size(1024, 768)
+
+         # 그녀는 입력 상자가 가운데 배치된 것을 본다
+```
+
+다른 부분에서 사이드 이펙트가 있는지 FT 를 실행한다.
+
+```sh
+    if cls.server_url == cls.live_server_url
+                                           ^
+SyntaxError: invalid syntax
+```
+
+책의 예제 그대로 따라하면 에러가 났다. 이유는 Django 의 버전에 따른 구현 방식이 바뀌었다. 
+
+책의 저자는 이 문제에 대한 응답을 아래에 남겨놨다.
+
+https://groups.google.com/forum/#!topic/obey-the-testing-goat-book/pokPKQQB2J8
+
+단순하다 `tearDownClass` 메서드를 지울 것!
+
+```py
+class NewVisitorTest(StaticLiveServerTestCase):
+    @classmethod
+    def setUpClass(cls):
+        for arg in sys.argv:
+            if 'liveserver' in arg:
+                cls.server_url = 'http://' + arg.split('=')[1]
+                return
+        super().setUpClass()
+        cls.server_url = cls.live_server_url
+```
+
+다시 FT 를 실행해보면 잘 된다.
+
+```sh
+$ python manage.py test functional_tests
+..
+----------------------------------------------------------------------
+Ran 2 tests in 17.007s
+```
+
+이제는 스테이징 서버 URL로 실행해보자.
+
+```sh
+$ python manage.py test functional_tests --liveserver=staging.ottg.eu:8000
+usage: manage.py test [-h] [--noinput] [--failfast] [--testrunner TESTRUNNER]
+                      [-t TOP_LEVEL] [-p PATTERN] [-k] [-r] [--debug-mode]
+                      [-d] [--parallel [N]] [--tag TAGS]
+                      [--exclude-tag EXCLUDE_TAGS] [--version] [-v {0,1,2,3}]
+                      [--settings SETTINGS] [--pythonpath PYTHONPATH]
+                      [--traceback] [--no-color] [--force-color]
+                      [test_label [test_label ...]]
+manage.py test: error: unrecognized arguments: --liveserver=staging.ottg.eu:8000
+```
+
+아예 옵션이 사라졌다! 이것도 검색해보면 장고 1.11 버전 이후로 `DJANGO_LIVE_TEST_SERVER_ADDRESS` 환경변수로 대체되었음을 알수 있다.
+
+https://docs.djangoproject.com/en/2.0/topics/testing/tools/#django.test.LiveServerTestCase
+
