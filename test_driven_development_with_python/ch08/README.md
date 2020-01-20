@@ -228,3 +228,5 @@ FAILED (failures=1, errors=1)
 https://freenom.com
 
 여기에서 나는 `pilhwnakim.tk` 도메인을 취득했으니 이 기준으로 진행하도록 한다.
+
+![도메인을 얻기 매우 쉬움](./ch08-01.png)
