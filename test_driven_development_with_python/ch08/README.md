@@ -43,7 +43,7 @@
 
 테스트 임시 서버가 실행되는 주소를 변경
 
-### [functional_tests/tests.py](./08-01/superlists/functional_tests/tests.py)
+### functional_tests/tests.py
 
 ```py
 import sys
@@ -73,7 +73,7 @@ class NewVisitorTest(StaticLiveServerTestCase):
 
 따라서 `self.live_server_url` -> `self.server_url` 로 변경
 
-### [functional_tests/tests.py](./08-01/superlists/functional_tests/tests.py)
+### functional_tests/tests.py
 
 ```py
 @@ -19,7 +34,7 @@
@@ -156,7 +156,67 @@ usage: manage.py test [-h] [--noinput] [--failfast] [--testrunner TESTRUNNER]
 manage.py test: error: unrecognized arguments: --liveserver=staging.ottg.eu:8000
 ```
 
-아예 옵션이 사라졌다! 이것도 검색해보면 장고 1.11 버전 이후로 `DJANGO_LIVE_TEST_SERVER_ADDRESS` 환경변수로 대체되었음을 알수 있다.
+아예 옵션이 사라졌다! 이것도 검색해보면 장고 1.11 버전 이후로 `DJANGO_LIVE_TEST_SERVER_ADDRESS` 환경변수로 대체되었음을 알수 있었다.
 
-https://docs.djangoproject.com/en/2.0/topics/testing/tools/#django.test.LiveServerTestCase
+https://docs.djangoproject.com/en/3.0/releases/1.11/#liveservertestcase-binds-to-port-zero
 
+이대로는 근본적인 해결책을 찾아야 해서 저자는 어떻게 변경했는지 영문 공개 페이지를 확인했더니 내용이 상당히 바뀌어 있었다.
+
+https://www.obeythetestinggoat.com/book/chapter_manual_deployment.html
+
+변경했던 것들을 다시 되돌리고 아래와 같이 변경하자.
+
+### [functional_tests/tests.py](./08-01/superlists/functional_tests/tests.py)
+
+```py
+import os
+
+[...]
+class NewVisitorTest(StaticLiveServerTestCase):
+
+    def setUp(self):
+        self.browser = webdriver.Chrome('chromedriver')
+        self.browser.implicitly_wait(3)
++        staging_server = os.environ.get('STAGING_SERVER')  
++        if staging_server:
++            self.live_server_url = 'http://' + staging_server  
+
+```
+
+다시 FT 를 실행해보면 잘 된다.
+
+```sh
+$ python manage.py test functional_tests
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+..
+----------------------------------------------------------------------
+Ran 2 tests in 14.670s
+
+OK
+```
+
+`--liveserver` 옵션 대신에 환경변수 `STAGING_SERVER` 로 주소를 지정하면 원하는 대로 의도적인 실패가 발생함을 확인 가능하다.
+
+```sh
+$ STAGING_SERVER=superlists-staging.ottg.eu python manage.py test functional_tests
+FE
+======================================================================
+ERROR: test_layout_and_styling (functional_tests.tests.NewVisitorTest)
+----------------------------------------------------------------------
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"css selector","selector":"[id="id_new_item"]"}
+  (Session info: chrome=79.0.3945.117)
+
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (functional_tests.tests.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/superlists/functional_tests/tests.py", line 29, in test_can_start_a_list_and_retrieve_it_later
+    self.assertIn('To-Do', self.browser.title)
+AssertionError: 'To-Do' not found in 'superlists-staging.ottg.eu'
+
+----------------------------------------------------------------------
+Ran 2 tests in 8.546s
+
+FAILED (failures=1, errors=1)
+```
