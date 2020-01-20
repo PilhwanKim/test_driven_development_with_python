@@ -220,3 +220,11 @@ Ran 2 tests in 8.546s
 
 FAILED (failures=1, errors=1)
 ```
+
+## 도메인명 취득
+
+이후 실습을 위해 꼭 취득하라고 권장하고 있다. 무료로 도메인을 얻을수 있는 곳도 있으니 실습용으로 하나 장만하자.
+
+https://freenom.com
+
+여기에서 나는 `pilhwnakim.tk` 도메인을 취득했으니 이 기준으로 진행하도록 한다.
