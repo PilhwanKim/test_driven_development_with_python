@@ -230,3 +230,90 @@ https://freenom.com
 여기에서 나는 `pilhwnakim.tk` 도메인을 취득했으니 이 기준으로 진행하도록 한다.
 
 ![도메인을 얻기 매우 쉬움](./ch08-01.png)
+
+## 수동으로 서버를 호스트 사이트로 프로비저닝
+
+### 배포 2단계
+
+- 신규 서버를 프로비저닝(Provisioning) 해서 코드를 호스팅 할 수 있도록 한다.
+- 신규 버전의 코드를 기존 서버에 배포한다.
+
+프로비저닝 종류가 다양하다. 최적의 배포 솔루션도 많다.
+
+But! 이해하려고 노력해야 한다. 다른 환경에서 개발해도 같은 원리를 적용할수 있도록
+
+### 사이트를 호스트할 곳 정하기
+
+두 가지 형태 존재
+- 자체 서버(가상도 가능) 운영
+- Platform-As-A-Service(PAAS) - Heroku, DotCloud, OpenShift, PythonAnywhere 등
+
+PaaS 서비스 배포 방식은 비추천
+- 범용성이 떨어짐(서로 다른 방식) 
+- 자주 변경되는 프로세스
+- 서비스 자체가 폐업이 일어나는 경우도 발생
+
+SSH와 웹 서버 설정을 이용한 전통적 서버관리 방식을 배우도록 한다!
+
+### 서버 구축하기
+
+다음 조건에 구축하도록 함
+
+- Ubuntu(13.04 이상) 가 설치
+- root 권한 있을 것
+- 인터넷 상에 공개되어 있을 것
+- SSH 로 접속할 수 있을 것
+
+우분투를 추천하는 이유
+- Python 3.4 기본 탑재
+- Nignx 설정이 쉬움
+
+### 사용자 계정, SSH, 권한
+
+이후부터 `sudo`권한을 가진 비루트 사용자 계정을 가지고 있다고 가정하고 진행
+
+계정은 다음과 같은 shell 명령으로 실행한다.
+
+```sh
+# 아래 명령들은 root 사용자로 실행해야 한다.
+# -m은 home 폴더 생성한다. -s는 pilhwan이 쉘 종류중에 bash를 사용하도록 한다.
+root@localhost:$ useradd -m -s /bin/bash pilhwan
+# pilhawn을 sudoers 그룹에 추가한다.
+root@localhost:$ usermod -a -G sudo pilhwan
+# pilhwan 패스워드 설정
+root@localhost:$ passwd pilhwan
+# pilhwan으로 사용자 변경
+root@localhost:$ su - pilhwan
+```
+
+ssh 패스워드 보다는 개인키(Private key)를 이용한 인증 방법을 쓰는 것이 좋음
+
+Local PC 에서 공개키(Public key)를 가져다 서버의 `~/.ssh/authorized_key`에 추가하면 됨
+
+아래 링크에 자세히 설명되어 있음
+
+https://www.linode.com/docs/security/authentication/use-public-key-authentication-with-ssh/
+
+### Nginx 설치
+
+`apt-get` 명령으로 거의 해결.
+
+```sh
+pilhwan@localhost:$ sudo apt-get install nginx
+pilhwan@localhost:$ sudo service nginx start
+```
+
+사이트 IP 주소로 브라우저 접속해보면 "Welcome to nginx" 페이지를 볼 수 있다.
+
+![도메인을 얻기 매우 쉬움](./ch08-02.png)
+
+페이지가 계속 로딩중일 경우는 방화벽이 80포트(http) 막았기 때문일 것이다.
+
+각 환경에 따라서 80포트를 풀어준다(예 AWS 경우는 EC2 Security Group 등록)
+
+이후 root 권한에서 필수 소프트웨어들을 설치한다
+
+```sh
+pilhwan@localhost:$ sudo apt-get install git python3 python3-pip
+pilhwan@localhost:$ sudo pip install virtualenv
+```
