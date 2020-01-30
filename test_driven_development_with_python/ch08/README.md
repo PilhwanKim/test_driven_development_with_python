@@ -255,6 +255,24 @@ PaaS 서비스 배포 방식은 비추천
 
 SSH와 웹 서버 설정을 이용한 전통적 서버관리 방식을 배우도록 한다!
 
+### AWS 계정 만들기
+
+필자가 언급한 pythonAnywhere를 사용하려 했었다.
+
+그러나 앞으로 실습하게 될 `sudo` 권한의 사용 제한과 nginx 설치가 불가능함을 확인했다.
+
+따라서 아마존 AWS환경을 중심으로 실습을 하려고 한다.
+
+먼저 회원가입을 해야하는데 아래 링크대로 따라하면 AWS 계정을 생성할 수 있다.
+
+#### 계정 생성 - aws 공식 문서
+
+https://aws.amazon.com/ko/premiumsupport/knowledge-center/create-and-activate-aws-account/
+
+#### 계정 생성후 보안 조치 - 계정 해킹당한후 엄청난 과금이 생길 수 있으므로 세팅 필수
+
+https://www.44bits.io/ko/post/first_actions_for_setting_secure_account
+
 ### 서버 구축하기
 
 다음 조건에 구축하도록 함
@@ -267,6 +285,10 @@ SSH와 웹 서버 설정을 이용한 전통적 서버관리 방식을 배우도
 우분투를 추천하는 이유
 - Python 3.4 기본 탑재
 - Nignx 설정이 쉬움
+
+### EC2 인스턴스 생성
+
+T.B.D
 
 ### 사용자 계정, SSH, 권한
 
@@ -317,3 +339,5 @@ pilhwan@localhost:$ sudo service nginx start
 pilhwan@localhost:$ sudo apt-get install git python3 python3-pip
 pilhwan@localhost:$ sudo pip install virtualenv
 ```
+
+### 스테이징 서버와 운영 서버를 위한 도메인 설정
