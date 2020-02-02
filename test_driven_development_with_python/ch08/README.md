@@ -288,7 +288,20 @@ https://www.44bits.io/ko/post/first_actions_for_setting_secure_account
 
 ### EC2 인스턴스 생성
 
-T.B.D
+실제 생성 방법은 아래 블로그 글들을 참고 하자.
+
+https://aws.amazon.com/ko/premiumsupport/knowledge-center/create-linux-instance/
+
+https://victorydntmd.tistory.com/61
+
+EC2 인스턴스 생성 정보
+- AMI : Ubuntu Server 18.04 LTS (HVM), SSD Volume Type
+- Name : superlists-was
+- Security group : superlists-was-sg
+  - 포트 22 - 0.0.0.0/0
+  - 포트 80 - 0.0.0.0/0
+
+로 해서 생성했다.
 
 ### 사용자 계정, SSH, 권한
 
@@ -298,21 +311,21 @@ T.B.D
 
 ```sh
 # 아래 명령들은 root 사용자로 실행해야 한다.
-# -m은 home 폴더 생성한다. -s는 pilhwan이 쉘 종류중에 bash를 사용하도록 한다.
-root@localhost:$ useradd -m -s /bin/bash pilhwan
-# pilhawn을 sudoers 그룹에 추가한다.
-root@localhost:$ usermod -a -G sudo pilhwan
-# pilhwan 패스워드 설정
-root@localhost:$ passwd pilhwan
-# pilhwan으로 사용자 변경
-root@localhost:$ su - pilhwan
+# -m은 home 폴더 생성한다. -s는 webapp이 쉘 종류중에 bash를 사용하도록 한다.
+root@localhost:$ useradd -m -s /bin/bash webapp
+# webapp을 sudoers 그룹에 추가한다.
+root@localhost:$ usermod -a -G sudo webapp
+# webapp 패스워드 설정
+root@localhost:$ passwd webapp
+# webapp 으로 사용자 변경
+root@localhost:$ su - webapp
 ```
 
 ssh 패스워드 보다는 개인키(Private key)를 이용한 인증 방법을 쓰는 것이 좋음
 
 Local PC 에서 공개키(Public key)를 가져다 서버의 `~/.ssh/authorized_key`에 추가하면 됨
 
-아래 링크에 자세히 설명되어 있음
+아래 링크에 자세히 설명되어 있다.
 
 https://www.linode.com/docs/security/authentication/use-public-key-authentication-with-ssh/
 
@@ -321,8 +334,9 @@ https://www.linode.com/docs/security/authentication/use-public-key-authenticatio
 `apt-get` 명령으로 거의 해결.
 
 ```sh
-pilhwan@localhost:$ sudo apt-get install nginx
-pilhwan@localhost:$ sudo service nginx start
+webapp@localhost:$ sudo apt-get update
+webapp@localhost:$ sudo apt-get install nginx
+webapp@localhost:$ sudo service nginx start
 ```
 
 사이트 IP 주소로 브라우저 접속해보면 "Welcome to nginx" 페이지를 볼 수 있다.
@@ -331,13 +345,13 @@ pilhwan@localhost:$ sudo service nginx start
 
 페이지가 계속 로딩중일 경우는 방화벽이 80포트(http) 막았기 때문일 것이다.
 
-각 환경에 따라서 80포트를 풀어준다(예 AWS 경우는 EC2 Security Group 등록)
+각 환경에 따라서 80포트를 풀어준다(AWS 경우는 EC2 Security Group 에 inbound 80포트 등록)
 
 이후 root 권한에서 필수 소프트웨어들을 설치한다
 
 ```sh
-pilhwan@localhost:$ sudo apt-get install git python3 python3-pip
-pilhwan@localhost:$ sudo pip install virtualenv
+webapp@localhost:$ sudo apt-get install git python3 python3-pip
+webapp@localhost:$ sudo pip3 install virtualenv
 ```
 
 ### 스테이징 서버와 운영 서버를 위한 도메인 설정
