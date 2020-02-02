@@ -227,7 +227,7 @@ FAILED (failures=1, errors=1)
 
 https://freenom.com
 
-여기에서 나는 `pilhwnakim.tk` 도메인을 취득했으니 이 기준으로 진행하도록 한다.
+여기에서 나는 `superlists.ml` 도메인을 취득했으니 이 기준으로 진행하도록 한다.
 
 ![도메인을 얻기 매우 쉬움](./ch08-01.png)
 
@@ -294,14 +294,13 @@ https://aws.amazon.com/ko/premiumsupport/knowledge-center/create-linux-instance/
 
 https://victorydntmd.tistory.com/61
 
-EC2 인스턴스 생성 정보
+아래와 같이 생성하자.
+
 - AMI : Ubuntu Server 18.04 LTS (HVM), SSD Volume Type
 - Name : superlists-was
 - Security group : superlists-was-sg
   - 포트 22 - 0.0.0.0/0
   - 포트 80 - 0.0.0.0/0
-
-로 해서 생성했다.
 
 ### 사용자 계정, SSH, 권한
 
@@ -341,7 +340,7 @@ webapp@localhost:$ sudo service nginx start
 
 사이트 IP 주소로 브라우저 접속해보면 "Welcome to nginx" 페이지를 볼 수 있다.
 
-![도메인을 얻기 매우 쉬움](./ch08-02.png)
+![nginx 구동](./ch08-02.png)
 
 페이지가 계속 로딩중일 경우는 방화벽이 80포트(http) 막았기 때문일 것이다.
 
@@ -355,3 +354,23 @@ webapp@localhost:$ sudo pip3 install virtualenv
 ```
 
 ### 스테이징 서버와 운영 서버를 위한 도메인 설정
+
+외부 무료 도메인과 AWS의 EC2 와 연결하려면 AWS ROUTE53 을 통해 연동해야 한다.
+
+아래의 블로그를 보면 연동 방법이 자세이 나와 있다.
+
+https://tech.cloud.nongshim.co.kr/2018/10/16/%EC%B4%88%EB%B3%B4%EC%9E%90%EB%A5%BC-%EC%9C%84%ED%95%9C-aws-%EC%9B%B9%EA%B5%AC%EC%B6%95-8-%EB%AC%B4%EB%A3%8C-%EB%8F%84%EB%A9%94%EC%9D%B8%EC%9C%BC%EB%A1%9C-route-53-%EB%93%B1%EB%A1%9D-%EB%B0%8F-elb/
+
+1. Route 53에 외부에서 할당한 도메인을 Hosted Zone 에 등록한다.
+
+2. 그 후에 A 레코드를 특정 EC2 public ip에 연결한다.
+
+![Route 53 도메인 설정](./ch08-03.png)
+
+3. 도메인 제공 사이트로 되돌아가 Route53에서 제공하는 NameServer로 등록한다.
+
+![NameServer 등록](./ch08-04.png)
+
+4. 등록을 마치고 도메인 주소로 브라우저에서 요청하면 nginx 화면이 뜬다.
+
+![최종 연결 확인](./ch08-05.png)
