@@ -374,3 +374,33 @@ https://tech.cloud.nongshim.co.kr/2018/10/16/%EC%B4%88%EB%B3%B4%EC%9E%90%EB%A5%B
 4. 등록을 마치고 도메인 주소로 브라우저에서 요청하면 nginx 화면이 뜬다.
 
 ![최종 연결 확인](./ch08-05.png)
+
+## 코드를 수동으로 배포
+
+- 스테이징 사이트에 코드를 복사해서 실행
+- nginx와 django 가 제대로 상호작용 하는지 확인
+
+책의 구성과 동일하게 소스 디렉토리를 구성하였다.
+`webapp` 계정의 홈 디렉토리에 구성한다.
+
+```sh
+/home/webapp
+├── sites
+│   ├── www.live.my-website.com
+│   │    ├── db.sqlite3
+│   │    ├── manage.py
+│   │    ├── [etc...]
+│   │    ├── static
+│   │    │    ├── base.css
+│   │    │    ├── [etc...]
+│   │    └── virtualenv
+│   │         ├── lib
+│   │         ├── [etc...]
+│   │
+│   ├── www.staging.my-website.com
+│   │    ├── db.sqlite3
+│   │    ├── [etc...]
+```
+
+- 각 사이트(스테이징, 운영, 기타 사이트)는 자체 폴더를 가진다.
+- database, static 파일, virtualenv 파일, 소스코드 파일은 각각 폴더 안에 구성한다.
