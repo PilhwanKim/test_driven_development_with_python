@@ -404,3 +404,33 @@ https://tech.cloud.nongshim.co.kr/2018/10/16/%EC%B4%88%EB%B3%B4%EC%9E%90%EB%A5%B
 
 - 각 사이트(스테이징, 운영, 기타 사이트)는 자체 폴더를 가진다.
 - database, static 파일, virtualenv 파일, 소스코드 파일은 각각 폴더 안에 구성한다.
+
+자 이제 다시 마련한 웹 서버에 ssh 로 접속해서 다음과 같이 소스를 git으로 복사해 오자.
+
+```sh
+webapp@server:$ export SITENAME=staging.superlists.ml
+# you should replace the URL in the next line with the URL for your own repo
+webapp@server:$ git clone git@github.com:PilhwanKim/superlists.git ~/sites/$SITENAME
+Resolving deltas: 100% [...]
+```
+
+- export 커맨드는 bash의 지역 변수를 할당하는 것이다. 이전 인라인 환경변수와 비슷하지만, 같은 쉘의 모든 커맨드에 사용 가능하다.
+
+- git clone 은 첫번째 매개변수인 URL 위치의 repo를 가져오는 것이다. 두번째 매개변수는 복사할 디렉토리 위치를 설정한다.
+
+자 바로 superlists 를 실행해 보자.
+
+```py
+webapp@server:$ cd ~/sites/$SITENAME
+$ python3.6 manage.py runserver
+Traceback (most recent call last):
+  File "manage.py", line 8, in <module>
+    from django.core.management import execute_from_command_line
+ModuleNotFoundError: No module named django
+[...]
+Couldn't import Django. Are you sure it's installed and available on your
+PYTHONPATH environment variable? Did you forget to activate a virtual
+environment?
+```
+
+아직 Django가 설치되지 않았음을 알 수 있다.
