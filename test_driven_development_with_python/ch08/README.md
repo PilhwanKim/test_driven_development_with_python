@@ -333,7 +333,7 @@ https://www.linode.com/docs/security/authentication/use-public-key-authenticatio
 `apt-get` 명령으로 거의 해결.
 
 ```sh
-webapp@localhost:$ sudo apt-get update
+webapp@localhost:$ sudo apt update
 webapp@localhost:$ sudo apt-get install nginx
 webapp@localhost:$ sudo service nginx start
 ```
@@ -421,16 +421,62 @@ Resolving deltas: 100% [...]
 자 바로 superlists 를 실행해 보자.
 
 ```py
-webapp@server:$ cd ~/sites/$SITENAME
-$ python3.6 manage.py runserver
+webapp@server:~$ cd ~/sites/$SITENAME
+webapp@server:~/sites/staging.superlists.ml$ python3.6 manage.py runserver
 Traceback (most recent call last):
-  File "manage.py", line 8, in <module>
+  File "manage.py", line 10, in main
     from django.core.management import execute_from_command_line
-ModuleNotFoundError: No module named django
-[...]
-Couldn't import Django. Are you sure it's installed and available on your
-PYTHONPATH environment variable? Did you forget to activate a virtual
-environment?
+ModuleNotFoundError: No module named 'django'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "manage.py", line 21, in <module>
+    main()
+  File "manage.py", line 16, in main
+    ) from exc
+ImportError: Couldn't import Django. Are you sure it's installed and available on your PYTHONPATH environment variable? Did you forget to activate a virtual environment?
 ```
 
 아직 Django가 설치되지 않았음을 알 수 있다.
+
+## requirements.txt를 사용하여 Virtualenv 생성
+
+프로젝트(spuerlists)의 Django와 그외 다른 패키지들을 설치할 때 고려사항
+
+- 같은 버전 사용
+- 개발, 운영 환경 동일해야 함
+
+그래서 등장하는 것이 `virtualenv` 이다.
+이것은 다른 곳에 설치된 다른 버전의 파이썬 패키지를 관리하기 위한 툴이다.
+
+먼저 로컬 환경에 패키지 리스트를 저장해야 한다. 이 리스트 이름을 통상적으로 `requirements.txt` 이름으로 저장한다.
+
+```sh
+$ echo "Django==2.2.8
+pytz==2019.3
+selenium==3.141.0
+sqlparse==0.3.0
+urllib3==1.25.7" > requirements.txt
+$ git add requirements.txt
+$ git commit -m "Add requirements.txt for virtualenv"
+```
+
+이 내용을 원격 repo에 보내기 위해 push 한다.
+
+```sh
+$ git push
+```
+
+다시 운영 서버로 가서 해당 내용을 가져온다.
+
+```sh
+webapp@server:$ git pull
+```
+
+virtualenv를 생성하자.
+
+```sh
+webapp@server:~/sites/staging.superlists.ml$ pwd
+/home/webapp/sites/staging.superlists.ml
+```
