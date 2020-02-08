@@ -7,7 +7,7 @@
 ### TDD와 배포시 주의가 필요한 사항
 
 - 정적파일(css, javascript, image 등)
-  - 제공을 위한 특스한 설정 필요
+  - 제공을 위한 특수한 설정 필요
 
 - 데이터베이스
   - 권한
@@ -519,3 +519,19 @@ Quit the server with CONTROL-C.
 * `git push & pull` - 서버와 코드를 주고받는 수단이 있다.
 * `virtualenv` - 로컬과 python 실행환경이 같도록 함
 * `requirements.txt` - 패키지도 같은 목록 같은 버전으로 설치 가능하게 목록화
+
+## FT로 배포 작업 확인
+
+로컬 PC에서 아래의 명령으로 FT를 실행하자. 방금 운영 서버에 띄운 django를 대상으로 테스트 한다.
+
+`--failfast` 옵션은 테스트 중 1개라도 실패하면 전체 테스트가 종료하는 옵션이다.
+
+```sh
+$ STAGING_SERVER=staging.superlists.ml ./manage.py test functional_tests --failfast
+
+[...]
+
+selenium.common.exceptions.WebDriverException: Message: Reached error page: [...]
+```
+
+결과는 실패다. 디버깅이 필요한 시간이 되었다.
