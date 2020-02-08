@@ -479,4 +479,43 @@ virtualenv를 생성하자.
 ```sh
 webapp@server:~/sites/staging.superlists.ml$ pwd
 /home/webapp/sites/staging.superlists.ml
+
+webapp@server:~/sites/staging.superlists.ml$ python3 -m venv virtualenv
+
+webapp@server:~/sites/staging.superlists.ml$ ls virtualenv/bin
+activate  activate.csh  activate.fish  easy_install  easy_install-3.6  pip  pip3  pip3.6  python  python3  python3.6
 ```
+
+앞으로 virtualenv 를 활성화 시키고자 하면 `source ./virtualenv/bin/activate` 를 하면 된다. 
+가상환경의 python, pip를 실행하려면  `./virtualenv/bin` 디렉토리 내의 파일을 실행한다.
+
+예로, `requirements.txt` 의 패키지를 pip로 설치하려면
+
+```sh
+webapp@server:~/sites/staging.superlists.ml$ ./virtualenv/bin/pip install -r requirements.txt
+Collecting Django==2.2.8 (from -r requirements.txt (line 1))
+
+[...]
+
+Successfully installed Django-2.2.8 pytz-2019.3 selenium-3.141.0 sqlparse-0.3.0 urllib3-1.25.7
+```
+
+virtualenv 환경에서 `python` 을 실행하려면
+
+```sh
+webapp@server:~/sites/staging.superlists.ml$ ./virtualenv/bin/python manage.py runserver
+Watching for file changes with StatReloader
+
+[...]
+
+February 08, 2020 - 21:44:10
+Django version 2.2.8, using settings 'superlists.settings'
+Starting development server at http://127.0.0.1:8000/
+Quit the server with CONTROL-C.
+```
+
+### 이제부터 가능해진 작업들
+
+* `git push & pull` - 서버와 코드를 주고받는 수단이 있다.
+* `virtualenv` - 로컬과 python 실행환경이 같도록 함
+* `requirements.txt` - 패키지도 같은 목록 같은 버전으로 설치 가능하게 목록화
