@@ -724,3 +724,64 @@ Destroying test database for alias 'default'...
 이 에러가 발생한 이유를 곰곰히 생각해보자면, 우리가 데이터베이스를 운영 환경에 셋업을 하지 않았음을 알수 있다.
 
 자 다음으로 운영환경에 데이터베이스를 셋업하자.
+
+## 마이그레이션으로 데이터베이스 생성
+
+--noinput 인수를 사용하여 마이그레이션을 실행하자. `--noinput` 은 migrate 명령중 물어보는 것을 건너뛰는 옵션이다.
+
+```sh
+webapp@server:$ ./virtualenv/bin/python manage.py migrate --noinput
+Operations to perform:
+  Apply all migrations: auth, contenttypes, lists, sessions
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  [...]
+  Applying lists.0004_item_list... OK
+  Applying sessions.0001_initial... OK
+
+```
+
+다시 재기동 해보자.
+
+```sh
+webapp@server:$ ./virtualenv/bin/python manage.py runserver 0.0.0.0:8000
+```
+
+기능 테스트를 다시 해보자.
+
+```sh
+$ STAGING_SERVER=staging.superlists.ml:8000 ./manage.py test functional_tests --failfast
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+..
+----------------------------------------------------------------------
+Ran 2 tests in 20.104s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+이제 배포 이후 테스트도 성공한다!
+
+## 우리의 배포 작업 성공!
+
+드디어 운영환경에도 웹앱이 정상 작동한다. 기존의 FT를 이용해서 점진적으로 확인하며 만들어 갈수 있었다.
+
+그러나 Django 개발 서버를 프로덕션 환경에서 사용하거나 포트 8000에서 영원히 실행할 수는 없다.
+
+다음 장에서는 배포를 보다 운영 준비에 적합하게 만드는 작업을 할 것이다.
+
+> ## 테스트 주도 서버 설정 및 배포
+>
+> ### 테스트는 배포 시에 발생할 수 있는 불확실성을 제거해준다
+>
+> 개발자로서 서버 관리는 매우 재미있는 작업이다. 왜냐하면 다양한 불확실성과 놀라움으로 가득 차 있기 때문이다.
+> 이번 장의 목표중 하나는 기능 테스트가 처리 과정 중 발생할 수 있는 불확실성을 어떻게 발견할 수 있는지 보여주는 것이다.
+>
+>### 배포가 까다로운 전형적인 요소들 - 데이터베이스, 정적 파일, 의존 관계, 사용자 지정 설정
+>
+>배포 시에 항상 주의해야 할 것은 데이터베이스 설정, 정적 파일, 소프트웨어 의존관계, 사용자 지정 설정 등이다. 이것들은 스테이징과 배포 서버에서 구성이 다르다. 각각에 대해 배포 과정을 잘 검토해야 한다.
+>
+>### 테스트에선 실험이 가능하다
+>
+>서버 설정을 바꿀 때마다 테스트를 실행해서 이전과 같은 상태로 동작하는지 확인할 수 있다. 이것은 두려움 없이 설정을 시도할 수 있도록 한다.
