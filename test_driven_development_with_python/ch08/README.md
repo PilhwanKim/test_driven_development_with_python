@@ -650,3 +650,77 @@ Destroying test database for alias 'default'...
 ```
 
 에러가 바뀌었다. 다시 curl 결과를 다시 확인할 필요가 있다.
+
+## settings.py 의 ALLOWED_HOSTS 해킹(예제 : [08-02](./08-02))
+
+이 문제를 쉽게 해결할 수 있긴 하지만 좀 더 내용을 파보자.
+
+이 사이트를 브라우저에서 열어보자.
+
+![브라우저 연결 확인](./ch08-06.png)
+
+ALLOWED_HOSTS는 위조, 파손, 악의적인 요청을 거부하도록 하는 보안 설정이다.(HTTP 요청에는 "호스트"라는 헤더에 의도된 주소가 포함되어 있음)
+
+기본적으로 `DEBUG = True` 인 경우,
+
+ALLOWED_HOSTS는 django를 기동하는 머신의 로컬 호스트를 허용하여 개발자 및 서버 자체 (localhost 로 요청)요청은 받아들이지만,
+ 
+머신 외부 요청은 거부한다(staging.superlists.ml로 요청).
+
+> 세부사항 참고:  https://docs.djangoproject.com/en/2.2/ref/settings/#std:setting-ALLOWED_HOSTS
+
+결론은 settings.py에서 ALLOWED_HOSTS를 조정해야 한다. 
+
+일단은 해킹중이므로 모든 허용 "*" 으로 설정한다.
+
+### [superlists/settings.py](./08-02/superlists/superlists/settings.py)
+
+```py
+[...]
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
+
+-ALLOWED_HOSTS = []
++ALLOWED_HOSTS = ['*']
+
+[...]
+```
+
+해당 내용을 local pc 에서 편집후 git push를 하고
+
+```sh
+$ git commit -am "hack ALLOWED_HOSTS to be *"
+$ git push
+```
+
+운영 서버에서 git pull 하여 반영후, runserver 를 재시작 해보자.
+
+```sh
+webapp@server:$ git pull
+webapp@server:$ ./virtualenv/bin/python manage.py runserver 0.0.0.0:8000
+```
+
+브라우저로 접속해보면 우리가 익숙히 보던 메인 페이지가 나온다.
+
+![브라우저 연결 확인](./ch08-07.png)
+
+다시 기능테스트도 확인해 보자.
+
+```sh
+$ STAGING_SERVER=staging.superlists.ml:8000 ./manage.py test functional_tests --failfast
+[...]
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"css selector","selector":"[id="id_list_table"]"}
+  (Session info: chrome=79.0.3945.130)
+[...]
+
+FAILED (errors=1)
+Destroying test database for alias 'default'...
+```
+
+기능 테스트 중에 발생한 장고 디버그 페이지는 좀 더 상세한 에러가 발생한 원인을 보여준다.
+
+![장고 디버그 페이지](./ch08-08.png)
+
+이 에러가 발생한 이유를 곰곰히 생각해보자면, 우리가 데이터베이스를 운영 환경에 셋업을 하지 않았음을 알수 있다.
+
+자 다음으로 운영환경에 데이터베이스를 셋업하자.
