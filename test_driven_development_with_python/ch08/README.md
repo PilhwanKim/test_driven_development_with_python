@@ -531,7 +531,122 @@ $ STAGING_SERVER=staging.superlists.ml ./manage.py test functional_tests --failf
 
 [...]
 
-selenium.common.exceptions.WebDriverException: Message: Reached error page: [...]
+AssertionError: 'To-Do' not found in 'staging.superlists.ml'
 ```
 
 결과는 실패다. 디버깅이 필요한 시간이 되었다.
+
+## 전혀 작동하지 않는 배포 디버깅
+
+> AWS 의 경우 먼저 해당 운영 서버에 적용된 security group 의 8000 포트를 열어야 한다.
+
+되돌아보면 장고 runserver 기본 port 는 8000 번이다. 기본 웹서버 포트는 80번이다.
+
+그래서 방금 한 테스트에 `STAGING_SERVER` 환경변수를 8000포트로 맞추어 보았다.
+
+```sh
+$ STAGING_SERVER=staging.superlists.ml:8000 ./manage.py test functional_tests --failfast
+
+[...]
+AssertionError: 'To-Do' not found in 'staging.superlists.ml'
+```
+
+동작하지 않는다. `curl` 커맨트라인 명령으로 http 접속 자체를 확인해보자.
+
+local pc에서 아래 명령을 쳐보자.
+
+```sh
+$ curl staging.superlists.ml:8000
+
+curl: (7) Failed to connect to staging.superlists.ml port 8000: Connection refused
+
+```
+
+결과는 연결이 거부되었다고 나온다. 연결이 거부되었다고???
+
+제대로 운영 서버에 8000번 포트에 웹 서버가 띄워져 있는지 확인하기 위해 운영서버 내부에서 `curl` 요청을 해보자.
+
+```sh
+webapp@server:~$ curl localhost:8000
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+
+    [...]
+    <title>To-Do lists</title>
+    [...]
+
+  </body>
+</html>
+```
+
+HTML 본문이 나오는 것을 확인했다. 운영서버 내부에서 localhost로 접속이 잘 된다. 어찌된 일일까?
+
+실제로 우리가 runserver를 실행할 때 Django가 이전에 출력 한 결과에 실마리가 있다.
+
+```sh
+Starting development server at http://127.0.0.1:8000/
+```
+
+Django의 개발 서버는 "localhost" 를 가리키는 IP 주소 인 127.0.0.1을 listen 하도록 설정되어 있다. 
+
+그러나 우리는 현재 운영 서버의 "실제" 공개 주소를 통해 외부에서 접근하려고 한다. 그러나 Django는 기본적으로 해당  주소를 listen 하지 않는다.
+
+모든 주소를 듣도록하자. Ctrl-C를 사용하여 실행 서버 프로세스를 중단하고 다음과 같이 다시 시작하면 된다.
+
+```sh
+webapp@server:~/sites/staging.superlists.ml$ ./virtualenv/bin/python manage.py runserver 0.0.0.0:8000
+
+[...]
+
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+```
+
+먼저 서버 내부에서 http 요청을 하면 잘 동작한다.
+
+```sh
+webapp@server:$ curl localhost:8000
+
+<!DOCTYPE html>
+[...]
+</html>
+
+```
+
+local pc 에서 요청하면 어떨까?
+
+```
+$ curl staging.superlists.ml:8000
+<!DOCTYPE html>
+<html lang="en">
+[...]
+</body>
+</html>
+```
+
+뭔가 html 응답이 왔다! 연결은 된 것이다.
+
+다시 FT를 실행해 보자.
+
+```sh
+$ STAGING_SERVER=staging.superlists.ml:8000 ./manage.py test functional_tests --failfast
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+F
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (functional_tests.tests.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/superlists/functional_tests/tests.py", line 29, in test_can_start_a_list_and_retrieve_it_later
+    self.assertIn('To-Do', self.browser.title)
+AssertionError: 'To-Do' not found in 'DisallowedHost at /'
+
+----------------------------------------------------------------------
+Ran 1 test in 4.035s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+```
+
+에러가 바뀌었다. 다시 curl 결과를 다시 확인할 필요가 있다.
