@@ -328,31 +328,6 @@ Local PC 에서 공개키(Public key)를 가져다 서버의 `~/.ssh/authorized_
 
 https://www.linode.com/docs/security/authentication/use-public-key-authentication-with-ssh/
 
-### Nginx 설치
-
-`apt-get` 명령으로 거의 해결.
-
-```sh
-webapp@localhost:$ sudo apt update
-webapp@localhost:$ sudo apt-get install nginx
-webapp@localhost:$ sudo service nginx start
-```
-
-사이트 IP 주소로 브라우저 접속해보면 "Welcome to nginx" 페이지를 볼 수 있다.
-
-![nginx 구동](./ch08-02.png)
-
-페이지가 계속 로딩중일 경우는 방화벽이 80포트(http) 막았기 때문일 것이다.
-
-각 환경에 따라서 80포트를 풀어준다(AWS 경우는 EC2 Security Group 에 inbound 80포트 등록)
-
-이후 root 권한에서 필수 소프트웨어들을 설치한다
-
-```sh
-webapp@localhost:$ sudo apt-get install git python3 python3-pip
-webapp@localhost:$ sudo pip3 install virtualenv
-```
-
 ### 스테이징 서버와 운영 서버를 위한 도메인 설정
 
 외부 무료 도메인과 AWS의 EC2 와 연결하려면 AWS ROUTE53 을 통해 연동해야 한다.
@@ -365,15 +340,15 @@ https://tech.cloud.nongshim.co.kr/2018/10/16/%EC%B4%88%EB%B3%B4%EC%9E%90%EB%A5%B
 
 2. 그 후에 A 레코드를 특정 EC2 public ip에 연결한다.
 
-![Route 53 도메인 설정](./ch08-03.png)
+![Route 53 도메인 설정](./ch08-02.png)
 
 3. 도메인 제공 사이트로 되돌아가 Route53에서 제공하는 NameServer로 등록한다.
 
-![NameServer 등록](./ch08-04.png)
+![NameServer 등록](./ch08-03.png)
 
 4. 등록을 마치고 도메인 주소로 브라우저에서 요청하면 nginx 화면이 뜬다.
 
-![최종 연결 확인](./ch08-05.png)
+![최종 연결 확인](./ch08-04.png)
 
 ## 코드를 수동으로 배포
 
@@ -474,6 +449,13 @@ $ git push
 webapp@server:$ git pull
 ```
 
+운영서버에서 sudo 명령으로 필수 소프트웨어들을 설치한다
+
+```sh
+webapp@server:$ sudo apt-get install git python3 python3-pip
+webapp@server:$ sudo pip3 install virtualenv
+```
+
 virtualenv를 생성하자.
 
 ```sh
@@ -486,7 +468,7 @@ webapp@server:~/sites/staging.superlists.ml$ ls virtualenv/bin
 activate  activate.csh  activate.fish  easy_install  easy_install-3.6  pip  pip3  pip3.6  python  python3  python3.6
 ```
 
-앞으로 virtualenv 를 활성화 시키고자 하면 `source ./virtualenv/bin/activate` 를 하면 된다. 
+앞으로 virtualenv 를 활성화 시키고자 하면 `source ./virtualenv/bin/activate` 를 하면 된다.
 가상환경의 python, pip를 실행하려면  `./virtualenv/bin` 디렉토리 내의 파일을 실행한다.
 
 예로, `requirements.txt` 의 패키지를 pip로 설치하려면
@@ -657,7 +639,7 @@ Destroying test database for alias 'default'...
 
 이 사이트를 브라우저에서 열어보자.
 
-![브라우저 연결 확인](./ch08-06.png)
+![브라우저 연결 확인](./ch08-05.png)
 
 ALLOWED_HOSTS는 위조, 파손, 악의적인 요청을 거부하도록 하는 보안 설정이다.(HTTP 요청에는 "호스트"라는 헤더에 의도된 주소가 포함되어 있음)
 
@@ -702,7 +684,7 @@ webapp@server:$ ./virtualenv/bin/python manage.py runserver 0.0.0.0:8000
 
 브라우저로 접속해보면 우리가 익숙히 보던 메인 페이지가 나온다.
 
-![브라우저 연결 확인](./ch08-07.png)
+![브라우저 연결 확인](./ch08-06.png)
 
 다시 기능테스트도 확인해 보자.
 
@@ -719,7 +701,7 @@ Destroying test database for alias 'default'...
 
 기능 테스트 중에 발생한 장고 디버그 페이지는 좀 더 상세한 에러가 발생한 원인을 보여준다.
 
-![장고 디버그 페이지](./ch08-08.png)
+![장고 디버그 페이지](./ch08-07.png)
 
 이 에러가 발생한 이유를 곰곰히 생각해보자면, 우리가 데이터베이스를 운영 환경에 셋업을 하지 않았음을 알수 있다.
 
