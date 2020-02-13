@@ -88,7 +88,7 @@ webapp@server:$ readlink -f $SITENAME
 /etc/nginx/sites-available/staging.superlists.ml
 ```
 
-이것이 데비안 / 우분투에서 Nginx 구성을 저장하는 데 선호하는 방법이다.
+이것이 데비안/우분투에서 Nginx 구성을 저장하는 데 선호하는 방법이다.
 
 즉, 실제 설정인 sites-available 과 symlink인 sites-enabled 로 별도 구성되어 있다.
 
@@ -123,3 +123,39 @@ OK
 ```
 
 그린 상태로 다시 되돌아 왔다.
+
+### Gunicorn 으로 전환
+
+Gunicorn 설치부터 한다.
+
+```sh
+webapp@server:$ ./virtualenv/bin/pip install gunicorn
+```
+
+Gunicorn 실행하려면 wsgi 경로 위치를 알려줘야 한다. 장고는 이 실행 코드가 `superlists/wsgi.py` 에 위치한다.
+
+```sh
+webapp@server:~/sites/staging.superlists.ml$ ./virtualenv/bin/gunicorn superlists.wsgi:application
+[2020-02-13 00:05:00 +0000] [2432] [INFO] Starting gunicorn 20.0.4
+[2020-02-13 00:05:00 +0000] [2432] [INFO] Listening at: http://127.0.0.1:8000 (2432)
+[2020-02-13 00:05:00 +0000] [2432] [INFO] Using worker: sync
+[2020-02-13 00:05:00 +0000] [2435] [INFO] Booting worker with pid: 2435
+```
+
+자 다시 환경이 재구성 되었으니 FT 테스트를 해보자. 실패가 발생한다.
+
+```sh
+$ STAGING_SERVER=ec2-13-125-189-192.ap-northeast-2.compute.amazonaws.com python manage.py test functional_tests
+$ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
+[...]
+AssertionError: 117.0 != 512 within 10 delta
+FAILED (failures=1)
+```
+
+브라우져로 띄워보면 화면이 깨져있다. CSS가 적용되어 있지 않다.
+
+CSS가 깨진 이유는 Django dev 서버가 정적 파일을 알아서 제공하지만 Gunicorn은 그렇지 않기 때문이다.
+
+![깨진 CSS 화면](./ch09-02.png)
+
+문제를 발견했으니 한걸음 더 가보자.
