@@ -208,3 +208,47 @@ Ran 3 tests in 10.718s
 
 OK
 ```
+
+### 유닉스 소켓 사용으로 전환
+
+스테이징과 라이브 서버 둘다 8000번 포트를 사용할 수는 없다. 
+
+서로 다른 포트를 할당할 수 는 있지만 서로 햇갈려서 잘못 사용할 가능성이 높다.
+
+더 나은 방식은 유닉스 도메인 소켓을 사용하는 것이다.
+
+디스크의 파일과 유사하나 Nginx 와 Gunicorn 이 서로 통신하는데 사용된다.
+
+이 소켓을 `/tmp` 경로에 넣는걸로 하고 설정을 시작해 보자.
+
+server: /etc/nginx/sites-available/staging.superlists.ml
+```sh
+server {
+    listen 80;
+    server_name staging.superlists.ml;
+
+    location /static {
+        alias /home/elspeth/sites/staging.superlists.ml/static;
+    }
+
+    location / {
+        proxy_pass http://unix:/tmp/staging.superlists.ml.socket;
+    }
+}
+```
+
+Gunicorn을 8000번 포트 대신 socket으로 수신 대기하도록 재시작한다.
+
+
+```sh
+webapp@server:$ sudo systemctl reload nginx
+webapp@server:$ ./virtualenv/bin/gunicorn --bind \
+    unix:/tmp/staging.superlists.ml.socket superlists.wsgi:application
+```
+
+그리고 다시 기능테스트를 실행해 보자.
+```sh
+$ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
+[...]
+OK
+```
