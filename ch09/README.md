@@ -158,4 +158,53 @@ CSS가 깨진 이유는 Django dev 서버가 정적 파일을 알아서 제공�
 
 ![깨진 CSS 화면](./ch09-02.png)
 
+### Nginx에서 정적 파일을 제공하기
+
 문제를 발견했으니 한걸음 더 가보자.
+
+먼저 장고 커맨드 `collectstatic` 로 정적 파일들을 nginx가 찾을 수 있는 경로로 복사한다.
+
+```sh
+webapp@server:$ ./virtualenv/bin/python manage.py collectstatic --noinput
+[...]
+15 static files copied to '/home/webapp/sites/staging.superlists.ml/static'
+elspeth@server:$ ls static/
+base.css  bootstrap
+```
+
+다음 Nginx에 설정에 두 번째 위치 directive를 추가하여 정적 파일 제공을 시작하도록 지시합니다.
+
+```sh
+server {
+    listen 80;
+    server_name superlists-staging.ottg.eu;
+
+    location /static {
+        alias /home/webapp/sites/staging.superlists.ml/static;
+    }
+
+    location / {
+        proxy_pass http://localhost:8000;
+    }
+}
+```
+
+Nginx 와 Gunicorn 을 재시작합니다.
+
+```sh
+webapp@server:$ sudo systemctl reload nginx
+webapp@server:$ ./virtualenv/bin/gunicorn superlists.wsgi:application
+```
+
+브라우저로 실행해보면 정상적으로 다시 화면이 보일 것이다. FT를 실행하여 검사해 보자.
+
+```sh
+$ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
+[...]
+
+...
+ ---------------------------------------------------------------------
+Ran 3 tests in 10.718s
+
+OK
+```
