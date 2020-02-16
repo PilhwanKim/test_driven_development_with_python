@@ -252,3 +252,62 @@ $ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
 [...]
 OK
 ```
+
+### 환경 변수를 사용하여 운영환경 설정 조정(예제 : [09-01](./09-01))
+
+`settings.py` 에는 운영환경에 맞게 변경할 사항이 몇가지 있다.
+
+- `ALLOWED_HOSTS`가 현재 `*`로 설정되어 안전하지 않다. 설정한 사이트 (staging.superlists.ml)에만 일치하도록 설정하도록 한다.
+- `DEBUG` 모드는 자신의 서버에서 해킹하는 데 매우 적합하지만 해당 페이지를 추적 가능한 전체 페이지로 남겨 두는 것은 안전하지 않다.
+- `SECRET_KEY`는 Django에서 쿠키 및 CSRF 보호와 같은 일부 암호화에 사용한다. 서버의 비밀 키가 소스 코드 리포지토리의 비밀 키와 다른지 확인하는 것이 좋다. 이 코드는 낯선 사람에게 보일 수 있기 때문이다. 새로운 무작위 파일을 생성하고 가까운 장래에 동일하게 유지하도록 한다. [장고 공식문서 보기](https://docs.djangoproject.com/en/2.2/topics/signing/#protecting-the-secret-key).
+
+환경변수는 개발, 스테이징, 운영 서버의 다른 설정을 저장하기에 알맞다.
+
+#### [superlists/settings.py](./09-01/superlists/superlists/settings.py)
+
+```py
+[...]
+if 'DJANGO_DEBUG_FALSE' in os.environ:  
+    DEBUG = False
+    SECRET_KEY = os.environ['DJANGO_SECRET_KEY']  
+    ALLOWED_HOSTS = [os.environ['SITENAME']]  
+else:
+    DEBUG = True  
+    SECRET_KEY = 'insecure-key-for-dev'
+    ALLOWED_HOSTS = []
+[...]
+```
+
+- `DJANGO_DEBUG_FALSE` 는 장고의 디버그 모드를 끄는데 운영 환경에서는 꼭 설정해야 한다.
+- `SECRET_KEY` 와 `ALLOWED_HOSTS` 는 디버그 모드를 끄면 반드시 설정해야 한다.
+- 디버그 모드를 켜면 개발환경에 유용한 보안에 안전하지 않은 설정으로 된다.
+
+위의 변경사항을 git 으로 반영하고 github에 push 한다.
+
+```
+$ git commit -am "use env vars for prod settings DEBUG, ALLOWED_HOSTS, SECRET_KEY"
+$ git push
+```
+
+다시 서버에서 pull 명령으로 변경 사항을 가져온다.
+
+```sh
+webapp@server:$ git pull
+webapp@server:$ export DJANGO_DEBUG_FALSE=y DJANGO_SECRET_KEY=abc123
+# we'll set the secret to something more secure later!
+webapp@server:$ ./virtualenv/bin/gunicorn --bind \
+    unix:/tmp/staging.superlists.ml.socket superlists.wsgi:application
+
+```
+
+잘 되는지 FT를 실행해 보자.
+
+```sh
+$ STAGING_SERVER=staging.superlists.ml ./manage.py test functional_tests --failfast
+[...]
+AssertionError: 'To-Do' not found in ''
+```
+
+테스트를 해보면 400에러가 중간에 뜨면서 실패한다.
+
+![400 에러가 발생](./ch09-03.png)
