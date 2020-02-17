@@ -311,3 +311,20 @@ AssertionError: 'To-Do' not found in ''
 테스트를 해보면 400에러가 중간에 뜨면서 실패한다.
 
 ![400 에러가 발생](./ch09-03.png)
+
+### 오류 메시지 필수검색
+
+FT 를 변경때마다 자주 실행했기에 문제를 조기에 파악할 수 있었다.
+
+지금 변경한 것은 `settings.py`의 세가지 세팅뿐이다. 따라서 이 중에 하나가 문제일 가능성이 높다.
+
+`구글링으로 에러메시지 검색하기` 신공을 쓰자.(물론 아래의 책은 없다.)
+
+![물론 이런 책은 없다....](https://www.obeythetestinggoat.com/book/images/twp2_1003.png)
+
+[`django 400 bad request`](http://google.com/?q=django+400+bad+request) 로 구글링을 해 보면 400 에러의 원인은 `ALLOWED_HOSTS` 인 경우가 많다.
+
+이전장에서는 장고의 디버그 모드여서 친절하게 원인을 알려주는 메시지가 같이 웹 사이트에 표시되었으나 운영환경에서 `DEBUG=False`로 했기 때문에 최소한의 400 에러 창 밖에 볼수가 없다.
+
+`ALLOWED_HOSTS` 에 어떤 문제가 있는 것인가? 검색한 결과중 첫번째는 우리에게 문제의 단서를 제공해 준다. [이 문서 링크](https://www.digitalocean.com/community/questions/bad-request-400-django-nginx-gunicorn-on-debian-7)
+
