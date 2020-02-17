@@ -177,7 +177,7 @@ base.css  bootstrap
 ```sh
 server {
     listen 80;
-    server_name superlists-staging.ottg.eu;
+    server_name staging.superlists.ml;
 
     location /static {
         alias /home/webapp/sites/staging.superlists.ml/static;
@@ -327,4 +327,44 @@ FT 를 변경때마다 자주 실행했기에 문제를 조기에 파악할 수
 이전장에서는 장고의 디버그 모드여서 친절하게 원인을 알려주는 메시지가 같이 웹 사이트에 표시되었으나 운영환경에서 `DEBUG=False`로 했기 때문에 최소한의 400 에러 창 밖에 볼수가 없다.
 
 `ALLOWED_HOSTS` 에 어떤 문제가 있는 것인가? 검색한 결과중 첫번째는 우리에게 문제의 단서를 제공해 준다. [이 문서 링크](https://www.digitalocean.com/community/questions/bad-request-400-django-nginx-gunicorn-on-debian-7)
+
+### Nginx와 함께 ALLOWED_HOSTS 수정 : 호스트 헤더 전달하기
+
+문제는 기본적으로 Nginx가 전달하는 요청에서 Host 헤더를 제거하고 결국 localhost에서 온 것처럼 보이게 한다는 것이다.
+
+proxy_set_header 지시문을 추가하여 원래 호스트 헤더에서 전달하도록 지시 할 수 있다.
+
+#### server: /etc/nginx/sites-available/staging.superlists.ml
+
+```sh
+server {
+    listen 80;
+    server_name staging.superlists.ml;
+
+    location /static {
+        alias /home/webapp/sites/staging.superlists.ml/static;
+    }
+
+    location / {
+        proxy_pass http://unix:/tmp/staging.superlists.ml.socket;
+        proxy_set_header Host $host;
+    }
+}
+```
+
+설정을 적용하기위해 nginx 를 리로드한다.
+
+```sh
+webapp@server:$ sudo systemctl reload nginx
+```
+
+FT로 문제가 해결되었는지 확인한다.
+
+```sh
+$ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
+[...]
+OK
+```
+
+다시 그린 상태로 돌아왔다.
 
