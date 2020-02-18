@@ -168,7 +168,7 @@ CSS가 깨진 이유는 Django dev 서버가 정적 파일을 알아서 제공�
 webapp@server:$ ./virtualenv/bin/python manage.py collectstatic --noinput
 [...]
 15 static files copied to '/home/webapp/sites/staging.superlists.ml/static'
-elspeth@server:$ ls static/
+webapp@server:$ ls static/
 base.css  bootstrap
 ```
 
@@ -228,7 +228,7 @@ server {
     server_name staging.superlists.ml;
 
     location /static {
-        alias /home/elspeth/sites/staging.superlists.ml/static;
+        alias /home/webapp/sites/staging.superlists.ml/static;
     }
 
     location / {
@@ -368,3 +368,68 @@ OK
 
 다시 그린 상태로 돌아왔다.
 
+### .env 파일을 사용하여 환경 변수 저장
+
+수동으로 환경변수를 일일히 서버마다 지정하기는 쉽지 않다.
+
+파이썬 세계에서는 `.env` 라고 불리는 파일 컨벤션을 이용하여 이런 환경변수를 모아서 지정한다.
+
+리팩터링을 하여 적용해 보자.
+
+먼저 .env를 .gitignore에 추가하자.
+
+```sh
+$ echo .env >> .gitignore
+$ git commit -am "gitignore .env file"
+$ git push
+```
+
+그리고 서버의 환경변수를 `.env` 에 저장하자.
+
+```sh
+webapp@server:$ pwd
+/home/webapp/sites/staging.superlists.ml
+webapp@server:$ echo DJANGO_DEBUG_FALSE=y >> .env
+webapp@server:$ echo SITENAME=$SITENAME >>.env
+```
+
+### 안전한 SECRET_KEY 생성
+
+Python one-liner 사용하여 `DJANGO_SECRET_KEY` 를 생성하자.
+
+```sh
+webapp@server:$ echo DJANGO_SECRET_KEY=$(
+python3.6 -c"import random; print(''.join(random.SystemRandom().
+choices('abcdefghijklmnopqrstuvwxyz0123456789', k=50)))"
+) >> .env
+webapp@server:$ cat .env
+DJANGO_DEBUG_FALSE=y
+SITENAME=staging.superlilsts.ml
+DJANGO_SECRET_KEY=[...]
+```
+
+`.env` 에서 잘 동작하는지 확인하고, gunicorn을 재시작하자.
+
+```sh
+webapp@server:$ unset DJANGO_SECRET_KEY DJANGO_DEBUG_FALSE SITENAME
+webapp@server:$ echo $DJANGO_DEBUG_FALSE-none
+-none
+webapp@server:$ set -a; source .env; set +a
+webapp@server:$ echo $DJANGO_DEBUG_FALSE-none
+y-none
+webapp@server:$ ./virtualenv/bin/gunicorn --bind \
+    unix:/tmp/$SITENAME.socket superlists.wsgi:application
+```
+
+FT를 실행시켜서 제대로 동작하는지 확인하자.
+
+```sh
+$ STAGING_SERVER=staging.superlilsts.ml python manage.py test functional_tests
+[...]
+OK
+```
+
+잘 작동한다.
+
+> 여기서는 수동으로 settings에 환경변수를 적용했지만
+> 플러그인으로 [django-environ](https://django-environ.readthedocs.io/en/latest/), [django-dotenv](https://github.com/jpadilla/django-dotenv) 등을 활용해서 자동으로 등록하는 것도 좋은 방법이다.
