@@ -145,7 +145,6 @@ webapp@server:~/sites/staging.superlists.ml$ ./virtualenv/bin/gunicorn superlist
 자 다시 환경이 재구성 되었으니 FT 테스트를 해보자. 실패가 발생한다.
 
 ```sh
-$ STAGING_SERVER=ec2-13-125-189-192.ap-northeast-2.compute.amazonaws.com python manage.py test functional_tests
 $ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
 [...]
 AssertionError: 117.0 != 512 within 10 delta
@@ -211,7 +210,7 @@ OK
 
 ### 유닉스 소켓 사용으로 전환
 
-스테이징과 라이브 서버 둘다 8000번 포트를 사용할 수는 없다. 
+스테이징과 라이브 서버 둘다 8000번 포트를 사용할 수는 없다.
 
 서로 다른 포트를 할당할 수 는 있지만 서로 햇갈려서 잘못 사용할 가능성이 높다.
 
@@ -239,7 +238,6 @@ server {
 
 Gunicorn을 8000번 포트 대신 socket으로 수신 대기하도록 재시작한다.
 
-
 ```sh
 webapp@server:$ sudo systemctl reload nginx
 webapp@server:$ ./virtualenv/bin/gunicorn --bind \
@@ -247,6 +245,7 @@ webapp@server:$ ./virtualenv/bin/gunicorn --bind \
 ```
 
 그리고 다시 기능테스트를 실행해 보자.
+
 ```sh
 $ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
 [...]
@@ -424,7 +423,7 @@ webapp@server:$ ./virtualenv/bin/gunicorn --bind \
 FT를 실행시켜서 제대로 동작하는지 확인하자.
 
 ```sh
-$ STAGING_SERVER=staging.superlilsts.ml python manage.py test functional_tests
+$ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
 [...]
 OK
 ```
@@ -433,3 +432,55 @@ OK
 
 > 여기서는 수동으로 settings에 환경변수를 적용했지만
 > 플러그인으로 [django-environ](https://django-environ.readthedocs.io/en/latest/), [django-dotenv](https://github.com/jpadilla/django-dotenv) 등을 활용해서 자동으로 등록하는 것도 좋은 방법이다.
+
+### 부팅시 Systemd를 사용하여 확실한 Gunicorn 시작
+
+마지막으로 systemd 를 사용하여 서버 부팅시 자동 시작을 하고 장고가 크래시 발생시 자동 리로드 할수 있도록 설정해보자.
+
+server: /etc/systemd/system/gunicorn-staging.superlists.ml.service
+
+```sh
+[Unit]
+Description=Gunicorn server for staging.superlists.ml
+
+[Service]
+Restart=on-failure  
+User=webapp  
+WorkingDirectory=/home/webapp/sites/staging.superlists.ml  
+EnvironmentFile=/home/webapp/sites/staging.superlists.ml/.env  
+
+ExecStart=/home/webapp/sites/staging.superlists.ml/virtualenv/bin/gunicorn \
+    --bind unix:/tmp/staging.superlists.ml.socket \
+    superlists.wsgi:application  
+
+[Install]
+WantedBy=multi-user.target
+```
+
+- `Restart=on-failure` 는 프로세스가 충돌하면 자동으로 다시 시작한다.
+- `User=webapp` 는 프로세스를 "webapp"사용자로 실행한다.
+- `WorkingDirectory` 는 현재 작업 디렉토리를 설정한다.
+- `EnvironmentFile` 은 시스템 파일을 .env 파일로 가리키고 환경 변수를 읽어들이도록 지시한다.
+- `ExecStart` 는 실제 실행 프로세스입니다. 가독성을 위해 `\` 줄 연속 문자를 사용하여 전체 명령을 여러 줄로 나눈다. 하지만 한 줄로 설정가능하다.
+- `WantedBy`는 [Install] 섹션의 Systemd에게 부팅시에 서비스를 시작하라고 알려준다.
+
+systemd 스크립트는 `/etc/systemd/system` 디렉토리 안에 있어야 하며, `.service` 파일 확장자여야 한다.
+
+systemd로 시작 가능하게 커맨드를 실행해보자.
+
+```sh
+# 이 명령은 Systemd에게 새 설정 파일을 로드 하도록 지시하는 데 필요하다.
+webapp@server:$ sudo systemctl daemon-reload
+# 이 명령은 Systemd에게 항상 부팅시 서비스를 로드하도록 지시한다.
+webapp@server:$ sudo systemctl enable gunicorn-staging.superlists.ml
+# 이 명령은 실제로 우리의 서비스를 시작한다.
+webapp@server:$ sudo systemctl start gunicorn-staging.superlists.ml
+```
+
+systemctl 적용된 사항이 잘 동작하는지 FT 로 확인한다.
+
+```sh
+$ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
+[...]
+OK
+```
