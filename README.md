@@ -47,6 +47,8 @@ pip install -r requirements.txt
 
 [8장 스테이징 사이트를 이용한 배포 테스트](./ch08/README.md)
 
+[9장 운영 준비 배포 시작](./ch09/README.md)
+
 ## 3부 고급편
 
 ## 부록 테스트 고트님께 복종하라
