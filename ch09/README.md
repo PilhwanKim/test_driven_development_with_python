@@ -484,3 +484,21 @@ $ STAGING_SERVER=staging.superlists.ml python manage.py test functional_tests
 [...]
 OK
 ```
+
+> #### 더 많은 디버깅 팁 및 커맨드
+>
+> - 시스템로그를 체크하고 싶다면 - `journalctl -u /etc/systemd/system/gunicorn-staging.superlists.ml.service`
+> - systemd에 config 파일 유효성을 검증할 때는 - `systemd-analyze verify /etc/systemd/system/gunicorn-staging.superlists.ml.service`
+> - 변경이 있을 때마다 nginx 와 gunicorn 서비스를 재시작한다.
+> - systemd config파일 변경후에는 `systemctl daemon-reload` 후에 `systemctl restart` 해야 변경사항이 적용된다.
+
+### 변경 사항 저장 : Gunicorn을 requirements.txt에 추가
+
+다음 명령으로 requirements.txt에 gunicorn을 추가한다.
+
+```sh
+$ pip install gunicorn
+$ pip freeze | grep gunicorn >> requirements.txt
+$ git commit -am "Add gunicorn to virtualenv requirements"
+$ git push
+```
