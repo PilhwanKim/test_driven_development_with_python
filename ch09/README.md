@@ -492,7 +492,7 @@ OK
 > - 변경이 있을 때마다 nginx 와 gunicorn 서비스를 재시작한다.
 > - systemd config파일 변경후에는 `systemctl daemon-reload` 후에 `systemctl restart` 해야 변경사항이 적용된다.
 
-### 변경 사항 저장 : Gunicorn을 requirements.txt에 추가
+#### 변경 사항 저장 : Gunicorn을 requirements.txt에 추가
 
 다음 명령으로 requirements.txt에 gunicorn을 추가한다.
 
@@ -502,3 +502,133 @@ $ pip freeze | grep gunicorn >> requirements.txt
 $ git commit -am "Add gunicorn to virtualenv requirements"
 $ git push
 ```
+
+### 자동화 생각하기(예제 : [09-02](./09-02))
+
+프로비저닝과 배포 절차를 정리해보자.
+
+#### 프로비저닝(Provisioning)
+
+1. 사용자 계정과 홈 디렉토리가 있다고 가정함
+2. `add-apt-repository ppa:deadsnakes/ppa && apt update`
+3. `apt install nginx git python3 python3-venv`
+4. 가상 호스트를 위한 nignx 설정 추가함
+5. Gunicorn을 위한 systemd 잡 추가
+
+#### 배포(Deployment)
+
+1. `~/sites` 디렉토리 구조 추가
+2. 소스코드 받기
+3. `virtualenv` 디렉토리에 있는 virtualenv 시작
+4. `pip install -r requirements.txt`
+5. 데이터 베이스 생성 위한 `manage.py migrate` 실행
+6. 정적 파일 생성위한 `collectstatic`
+7. Gunicorn 재시작
+8. FT 를 시작해서 정상적으로 동작하는지 확인함
+
+위의 프로비저닝 절차를 자동화를 하기로 한다.
+
+지금 까지의 작업과 nignx, systemd 설정 파일을 저장하고 재사용하도록 해야한다.
+
+이 내용들을 git 레포의 새 하위 디렉토리에 저장하자. 먼저 하위 폴더를 생성하자.
+
+```sh
+$ mkdir deploy_tools
+```
+
+Nginx 설정의 일반적인 템플릿을 저장함
+
+#### [deploy_tools/nginx.template.conf](./09-02/deploy_tools/nginx.template.conf)
+
+```sh
+server {
+    listen 80;
+    server_name SITENAME;
+
+    location /static {
+        alias /home/webapp/sites/SITENAME/static;
+    }
+
+
+    location / {
+        proxy_set_header Host $host;
+        proxy_pass http://unix:/tmp/SITENAME.socket;
+    }
+}
+```
+
+Gunicorn sytemd 서비스 설정도 추가함
+
+#### [deploy_tools/gunicorn-systemd.template.service](./09-02/deploy_tools/gunicorn-systemd.template.service)
+
+```sh
+[Unit]
+Description=Gunicorn server for DOMAIN
+
+[Service]
+Restart=on-failure
+User=elspeth
+WorkingDirectory=/home/webapp/sites/DOMAIN
+EnvironmentFile=/home/webapp/sites/DOMAIN/.env
+
+ExecStart=/home/webapp/sites/DOMAIN/virtualenv/bin/gunicorn \
+    --bind unix:/tmp/DOMAIN.socket \
+    superlists.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
+```
+
+이제 DOMAIN 만 치환하여 새로운 서버에 프로비저닝 하기 쉽다.
+
+배포에 필요한 메모를 md 파일에 저장해놓자.
+
+#### [deploy_tools/provisioning_notes.md](./09-02/deploy_tools/provisioning_notes.md)
+
+```md
+Provisioning a new site
+=======================
+
+## Required packages:
+
+* nginx
+* Python 3.6
+* virtualenv + pip
+* Git
+
+eg, on Ubuntu:
+
+    sudo add-apt-repository ppa:deadsnakes/ppa
+    sudo apt update
+    sudo apt install nginx git python36 python3.6-venv
+
+## Nginx Virtual Host config
+
+* see nginx.template.conf
+* replace DOMAIN with, e.g., staging.my-domain.com
+
+## Systemd service
+
+* see gunicorn-systemd.template.service
+* replace DOMAIN with, e.g., staging.my-domain.com
+
+## Folder structure:
+
+Assume we have a user account at /home/username
+
+/home/username
+└── sites
+    ├── DOMAIN1
+    │    ├── .env
+    │    ├── db.sqlite3
+    │    ├── manage.py etc
+    │    ├── static
+    │    └── virtualenv
+    └── DOMAIN2
+         ├── .env
+         ├── db.sqlite3
+         ├── etc
+```
+
+작업내용을 git 커밋을 하자.
+
