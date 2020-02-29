@@ -1,0 +1,124 @@
+# 10장 페브릭을 이용한 배포 자동화
+
+- 배포 자동화는 스테이징 테스트에 있어 핵심이다.
+- 배포 절차를 반복 실행함으로 운영 환경에서도 정상적으로 동작하는 사이트를 배포 가능하다.
+
+- 페브릭(Fabric)? 
+  - 서버에서 명령어를 자동으로 실행할 수 있게 해주는 툴
+
+현재 app 의 중요 기능이 아니라서 `requirements.txt` 에 포함하지 않고 로컬 PC 에만 설치한다
+
+```sh
+pip install fabric3
+```
+
+일반적 설정은 `fabfile.py` 에서 작성한다. 이 파일에 작성된 함수들이 `fab` 같은 커맨드라인 툴에서 실행된다.
+
+```sh
+fab function_name,host=SERVER_ADDRESS
+```
+
+function_name 이라는 함수를 호출해서 SERVER_ADDRESS 서버에 전달한다.
+
+## 배포를 위한 페브릭 스크립트 파헤치기(예제 : [10-01](./10-01))
+
+예제 파일을 보며 페브릭이 어떻게 동작하는 지 살펴보자.
+
+### [deploy_tools/fabfile.py](./10-01/deploy_tools/fabfile.py)
+
+```py
+import random
+from fabric.contrib.files import append, exists
+from fabric.api import cd, env, local, run
+
+REPO_URL = 'https://github.com/PilhwanKim/superlists.git'  
+
+def deploy():
+    site_folder = f'/home/{env.user}/sites/{env.host}'  
+    run(f'mkdir -p {site_folder}')  
+    with cd(site_folder):  
+        _get_latest_source()
+        _update_virtualenv()
+        _create_or_update_dotenv()
+        _update_static_files()
+        _update_database()
+```
+
+- `env.user`에는 서버에 로그인 할 때 사용하는 사용자 이름. `env.host`는 커맨드라인에서 지정한 서버의 주소(예 : superlists.ml).
+- `run`은 가장 일반적인 Fabric 명령이다. "서버에서 이 쉘 명령을 실행하십시오" 라고 명시하는 것. 이 장의 실행 명령은 마지막 두 명령에서 수동으로 수행 한 많은 명령을 복제합니다.
+- `mkdir -p`는 유용한 `mkdir`옵션으로 더 좋은 이유가 있다.
+  - 디렉토리를 여러 수준으로 만들 수 있으며 필요한 경우에만 만들 수 있다.
+  - `mkdir -p /tmp/foo/bar`는 필요한 경우 디렉토리 표시 줄과 상위 디렉토리 `foo`를 만든다. `bar`가 이미 존재하는 경우에도 에러 처리 하지 않는다.
+- `cd`는 "이 작업 디렉토리 내에서 다음 모든 명령문을 실행하십시오"라는 패브릭 컨텍스트 관리자이다.
+
+이후의 helper function 은 자기 설명적(self-descriptive) 이름을 가지고 있다.
+
+fabfile의 모든 함수는 명령줄에서 호출 할 수 있기 때문에, 밑줄 표기법을 사용하여 해당 함수가 fabfile의 "공용 API"의 일부가 아님을 나타낸다.
+
+순서대로 함수들의 내용을 각각 살펴 보자.
+
+### Git으로 소스 코드 받기
+
+```py
+def _get_latest_source():
+    if exists('.git'):  
+        run('git fetch')  
+    else:
+        run(f'git clone {REPO_URL} .')  
+    current_commit = local("git log -n 1 --format=%H", capture=True)  
+    run(f'git reset --hard {current_commit}')
+```
+
+- `exist`는 디렉토리 또는 파일이 서버에 이미 존재하는지 확인한다. `.git` 숨겨진 폴더를 찾아서 repo가 ​​사이트 폴더에 이미 복제되었는지 확인한다.
+- 기존 git repo 가 있다면 `git fetch`는 명령으로 모든 최신 커밋을 가져온다(git pull과 같지만 라이브 소스 트리를 즉시 업데이트하지는 않음).
+- 기존 git repo 가 없다면, repo URL과 함께 `git clone`을 사용하여 새로운 소스 트리를 가져온다.
+- Fabric의 `local` 명령은 로컬 PC에서 명령을 실행한다. `subprocess.call`을 래핑한 것으로 매우 편리하다. 여기서는 `git log` 출력을 캡처하여 로컬 Tree에 있는 현재 커밋의 ID를 얻는다. 이것은 로컬 장비에서 체크아웃한 상태와 동일한 상태로 서버가 종료됨을 의미한다(단 서버에 push 한 상태여아 한다)
+- `reset --hard` 이용하여 서버의 코드 디렉터리에 발생한 모든 변경을 초기화한다
+
+### Virtualenv 업데이트
+
+```py
+def _update_virtualenv():
+    if not exists('virtualenv/bin/pip'):  
+        run(f'python3.6 -m venv virtualenv')
+    run('./virtualenv/bin/pip install -r requirements.txt')
+```
+
+- virtualenv 폴더 내부에서 `pip` 실행 파일이 있는지 확인하는 방법으로 pip 실행 파일을 찾는다.
+- 그런 다음 이전과 같이 `pip install -r`을 사용한다.
+
+### 필요한 경우에 새 .env 파일 만들기
+
+```py
+def _create_or_update_dotenv():
+    append('.env', 'DJANGO_DEBUG_FALSE=y')  
+    append('.env', f'SITENAME={env.host}')
+    current_contents = run('cat .env')  
+    if 'DJANGO_SECRET_KEY' not in current_contents:  
+        new_secret = ''.join(random.SystemRandom().choices(  
+            'abcdefghijklmnopqrstuvwxyz0123456789', k=50
+        ))
+        append('.env', f'DJANGO_SECRET_KEY={new_secret}')
+```
+
+- `append` 명령은 조건부로 파일에 줄을 추가한다(해당 줄이 없는 경우)
+- `DJANGO_SECRET_KEY`의 경우 먼저 파일에 이미 항목이 있는지 수동으로 확인한다.
+- key 가 없는 경우, 이전의 단일 라이너를 참고하여 새로운 단일 라이너로 key를 생성한다(새 키와 기존의 잠재적인 키가 동일하지 않기 때문에 `append` 명령이 유효하다).
+
+### 정적 파일 업데이트
+
+```py
+def _update_static_files():
+    run('./virtualenv/bin/python manage.py collectstatic --noinput')  
+```
+
+- `Django manage.py` 명령을 실행해야 할 때마다 virtualenv 버전의 Python을 사용하여 시스템 버전이 아닌 Django의 virtualenv 버전을 가져온다.
+
+### 필요한 경우에 데이터베이스 마이그레이션
+
+```py
+def _update_database():
+    run('./virtualenv/bin/python manage.py migrate --noinput')
+```
+
+- `--noinput`은 Fabric이 처리하기 어려운 대화형 yes/no 확인을 건너뛴다.
