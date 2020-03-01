@@ -6,7 +6,7 @@
 - 페브릭(Fabric)? 
   - 서버에서 명령어를 자동으로 실행할 수 있게 해주는 툴
 
-현재 app 의 중요 기능이 아니라서 `requirements.txt` 에 포함하지 않고 로컬 PC 에만 설치한다
+Fabric은 서버에서 실행하려는 명령을 자동화 할 수있는 도구이다. `fabric3`는 fabric의 Python3 버전이다.
 
 ```sh
 pip install fabric3
@@ -122,3 +122,59 @@ def _update_database():
 ```
 
 - `--noinput`은 Fabric이 처리하기 어려운 대화형 yes/no 확인을 건너뛴다.
+
+### 자동화 스크립트 실행해보기
+
+먼저 fabfile.py를 git repo에 적용하자.
+
+```sh
+$ git push
+```
+
+이제 스테이징 사이트에서 스크립트를 실행해보자.
+
+```sh
+$ cd ~/sites/staging.superlists.ml/deploy_tools/
+
+# fab deploy:host=webapp@superlists.ml 으로 실행하도록 나오는데 fab 명령어로 되질 않아서 다음과 같이 함
+$ python3 -m fabric deploy:host=webapp@staging.superlists.ml
+[webapp@staging.superlists.ml] Executing task 'deploy'
+[webapp@staging.superlists.ml] run: mkdir -p
+/home/elspeth/sites/superlists-staging.ottg.eu
+[webapp@staging.superlists.ml] run: git fetch
+[webapp@staging.superlists.ml] out: remote: Counting objects: [...]
+[webapp@staging.superlists.ml] out: remote: Compressing objects: [...]
+[localhost] local: git log -n 1 --format=%H
+[webapp@staging.superlists.ml] run: git reset --hard
+[...]
+[webapp@staging.superlists.ml] out: HEAD is now at [...]
+[webapp@staging.superlists.ml] out:
+[webapp@staging.superlists.ml] run: ./virtualenv/bin/pip install -r
+requirements.txt
+[webapp@staging.superlists.ml] out: Requirement already satisfied:
+django==1.11.13 in ./virtualenv/lib/python3.6/site-packages (from -r
+requirements.txt (line 1))
+[webapp@staging.superlists.ml] out: Requirement already satisfied:
+gunicorn==19.8.1 in ./virtualenv/lib/python3.6/site-packages (from -r
+requirements.txt (line 2))
+[webapp@staging.superlists.ml] out: Requirement already satisfied: pytz
+in ./virtualenv/lib/python3.6/site-packages (from django==1.11.13->-r
+requirements.txt (line 1))
+[webapp@staging.superlists.ml] out:
+[webapp@staging.superlists.ml] run: ./virtualenv/bin/python manage.py
+collectstatic --noinput
+[webapp@staging.superlists.ml] out:
+[webapp@staging.superlists.ml] out: 0 static files copied to
+'/home/elspeth/sites/superlists-staging.ottg.eu/static', 15 unmodified.
+[webapp@staging.superlists.ml] out:
+[webapp@staging.superlists.ml] run: ./virtualenv/bin/python manage.py
+migrate --noinput
+[webapp@staging.superlists.ml] out: Operations to perform:
+[webapp@staging.superlists.ml] out:   Apply all migrations: auth,
+contenttypes, lists, sessions
+[webapp@staging.superlists.ml] out: Running migrations:
+[webapp@staging.superlists.ml] out:   No migrations to apply.
+[webapp@staging.superlists.ml] out:
+```
+
+이 스크립트는 몇번 반복 실행해도 같은 결과를 만들어내는데 멱등성(idempotent) 이 있기 때문이다.
