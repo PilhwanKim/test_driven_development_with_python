@@ -285,7 +285,7 @@ webapp@server: cat ./deploy_tools/gunicorn-systemd.template.service \
 두 서비스를 실행한다.
 
 
-그리고 도메인 명으로 브라우저 접속을 해보면 앱이 잘 작동함을 환인한다.
+그리고 도메인 명으로 브라우저 접속을 해보면 앱이 잘 작동함을 확인한다.
 
 ![브라우저 실행](https://www.obeythetestinggoat.com/book/images/twp2_1101.png)
 
@@ -302,4 +302,25 @@ https://www.obeythetestinggoat.com/book/images/twp2_1101.png
 ```sh
 $ git add deploy_tools/fabfile.py
 $ git commit -m "Add a fabfile for automated deploys"
+```
+
+### Git 태그 릴리즈
+
+현재 서버에 반영된 코드베이스가 어떤 것임을 표시하기 위해 git tag를 이용한다.
+
+```sh
+$ git tag LIVE
+$ export TAG=$(date +DEPLOYED-%F/%H%M)  # this generates a timestamp
+$ echo $TAG # should show "DEPLOYED-" and then the timestamp
+$ git tag $TAG
+$ git push origin LIVE $TAG # pushes the tags up
+```
+
+이렇게 하면 언제든지 현재 서버에 적용된 코드 베이스를 쉽게 확인할 수 있다.
+
+tag가 적용되었는지 `git log` 로 확인해보자.
+
+```sh
+$ git log --graph --oneline --decorate
+[...]
 ```
