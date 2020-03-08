@@ -49,6 +49,8 @@ pip install -r requirements.txt
 
 [9장 운영 준비 배포 시작](./ch09/README.md)
 
+[10장 페브릭을 이용한 배포 자동화](./ch10/README.md)
+
 ## 3부 고급편
 
 ## 부록 테스트 고트님께 복종하라
