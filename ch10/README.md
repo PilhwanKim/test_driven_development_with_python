@@ -3,7 +3,7 @@
 - 배포 자동화는 스테이징 테스트에 있어 핵심이다.
 - 배포 절차를 반복 실행함으로 운영 환경에서도 정상적으로 동작하는 사이트를 배포 가능하다.
 
-- 페브릭(Fabric)? 
+- 페브릭(Fabric)?
   - 서버에서 명령어를 자동으로 실행할 수 있게 해주는 툴
 
 Fabric은 서버에서 실행하려는 명령을 자동화 할 수있는 도구이다. `fabric3`는 fabric의 Python3 버전이다.
@@ -140,7 +140,7 @@ $ cd ~/sites/staging.superlists.ml/deploy_tools/
 $ python3 -m fabric deploy:host=webapp@staging.superlists.ml
 [webapp@staging.superlists.ml] Executing task 'deploy'
 [webapp@staging.superlists.ml] run: mkdir -p
-/home/elspeth/sites/superlists-staging.ottg.eu
+/home/webapp/sites/superlists-staging.ottg.eu
 [webapp@staging.superlists.ml] run: git fetch
 [webapp@staging.superlists.ml] out: remote: Counting objects: [...]
 [webapp@staging.superlists.ml] out: remote: Compressing objects: [...]
@@ -165,7 +165,7 @@ requirements.txt (line 1))
 collectstatic --noinput
 [webapp@staging.superlists.ml] out:
 [webapp@staging.superlists.ml] out: 0 static files copied to
-'/home/elspeth/sites/superlists-staging.ottg.eu/static', 15 unmodified.
+'/home/webapp/sites/superlists-staging.ottg.eu/static', 15 unmodified.
 [webapp@staging.superlists.ml] out:
 [webapp@staging.superlists.ml] run: ./virtualenv/bin/python manage.py
 migrate --noinput
@@ -188,8 +188,7 @@ $ fab deploy:host=webapp@superlists.ml
 [webapp@superlists.ml] Executing task 'deploy'
 [webapp@superlists.ml] run: mkdir -p
 /home/webapp/sites/superlists.ml
-[webapp@superlists.ml] run: git clone
-https://github.com/hjwp/book-example.git .
+[webapp@superlists.ml] run: git clone https://github.com/PilhwanKim/superlists.git .
 [webapp@superlists.ml] out: Cloning into '.'...
 [...]
 [webapp@superlists.ml] out: Receiving objects: 100% [...]
@@ -215,7 +214,7 @@ gunicorn
 gunicorn-19.7.1 pytz-2017.3
 
 [webapp@superlists.ml] run: echo 'DJANGO_DEBUG_FALSE=y' >> "$(echo .env)"
-[webapp@superlists.ml] run: echo 'SITENAME=superlists.ottg.eu' >> "$(echo .env)"
+[webapp@superlists.ml] run: echo 'SITENAME=superlists.ml' >> "$(echo .env)"
 [webapp@superlists.ml] run: echo 'DJANGO_SECRET_KEY=[...]'
 [webapp@superlists.ml] run: ./virtualenv/bin/python manage.py
 collectstatic --noinput
@@ -252,3 +251,55 @@ Disconnecting from webapp@superlists.ml... done.
 
 장에서 언급한 배포 절차를 반복 실행이 가능함을 확인한 것이다.
 
+### 프로비저닝 : sed를 사용하여 Nginx 및 Gunicorn 설정
+
+이제 남은 할일은 9장에서 만든 템플릿 파일들을 이용해서 Nginx 가상 호스트와 Systemd 서비스 config 파일들을 만들어서 실행시키는 일이다.
+
+```sh
+webapp@server:$ cat ./deploy_tools/nginx.template.conf \
+    | sed "s/DOMAIN/superlists.ml/g" \
+    | sudo tee /etc/nginx/sites-available/superlists.ml
+```
+
+`sed` ("stream editor") - 텍스트 스트림을 가져와서 편집함.
+
+- `s/replaceme/withthis/g` 구문으로 사이트 주소 대신 DOMAIN 문자열을 대체하도록 요청한다.
+- cat은 파일을 출력하고 이를 sed 프로세스로 파이프 (|)한다.
+- tee를 사용하여 입력을 파일에 쓰는 루트 사용자 프로세스 (sudo)로 출력함. `sites-available` 디렉터리의 nginx config 파일을 최종 생성 한다.
+
+symlink를 이용해서 Nginx 설정파일을 활성화 한다.
+
+```sh
+webapp@server:$ sudo ln -s /etc/nginx/sites-available/superlists.ml \
+    /etc/nginx/sites-enabled/superlists.ml
+```
+
+Systemd cofig 파일도 `sed`로 생성한다.
+
+```sh
+webapp@server: cat ./deploy_tools/gunicorn-systemd.template.service \
+    | sed "s/DOMAIN/superlists.ml/g" \
+    | sudo tee /etc/systemd/system/gunicorn-superlists.ml.service
+```
+
+두 서비스를 실행한다.
+
+
+그리고 도메인 명으로 브라우저 접속을 해보면 앱이 잘 작동함을 환인한다.
+
+![브라우저 실행](https://www.obeythetestinggoat.com/book/images/twp2_1101.png)
+
+```sh
+webapp@server:$ sudo systemctl daemon-reload
+webapp@server:$ sudo systemctl reload nginx
+webapp@server:$ sudo systemctl enable gunicorn-superlists.ml
+webapp@server:$ sudo systemctl start gunicorn-superlists.ml
+```
+https://www.obeythetestinggoat.com/book/images/twp2_1101.png
+
+잘 배포됨을 확인하고 fabfile.py 내용을 git repo에 저장하자.
+
+```sh
+$ git add deploy_tools/fabfile.py
+$ git commit -m "Add a fabfile for automated deploys"
+```
