@@ -51,6 +51,8 @@ pip install -r requirements.txt
 
 [10장 페브릭을 이용한 배포 자동화](./ch10/README.md)
 
+[11장 입력 유효성 검사 및 테스트 구조화](./ch11/README.md)
+
 ## 3부 고급편
 
 ## 부록 테스트 고트님께 복종하라
