@@ -178,3 +178,77 @@ contenttypes, lists, sessions
 ```
 
 이 스크립트는 몇번 반복 실행해도 같은 결과를 만들어내는데 멱등성(idempotent) 이 있기 때문이다.
+
+### 라이브 배포
+
+동일한 명령어로 라이브 배포를 해보자.
+
+```sh
+$ fab deploy:host=webapp@superlists.ml
+[webapp@superlists.ml] Executing task 'deploy'
+[webapp@superlists.ml] run: mkdir -p
+/home/webapp/sites/superlists.ml
+[webapp@superlists.ml] run: git clone
+https://github.com/hjwp/book-example.git .
+[webapp@superlists.ml] out: Cloning into '.'...
+[...]
+[webapp@superlists.ml] out: Receiving objects: 100% [...]
+[...]
+[webapp@superlists.ml] out: Resolving deltas: 100% [...]
+[webapp@superlists.ml] out:
+[localhost] local: git log -n 1 --format=%H
+[webapp@superlists.ml] run: git reset --hard [...]
+[webapp@superlists.ml] out: HEAD is now at [...]
+[webapp@superlists.ml] out:
+[webapp@superlists.ml] run: python3.6 -m venv virtualenv
+[webapp@superlists.ml] run: ./virtualenv/bin/pip install -r
+requirements.txt
+[webapp@superlists.ml] out: Collecting django==1.11.13 [...]
+[webapp@superlists.ml] out:   Using cached [...]
+[webapp@superlists.ml] out: Collecting gunicorn==19.8.1 [...]
+[webapp@superlists.ml] out:   Using cached [...]
+[webapp@superlists.ml] out: Collecting pytz [...]
+[webapp@superlists.ml] out:   Using cached [...]
+[webapp@superlists.ml] out: Installing collected packages: pytz, django,
+gunicorn
+[webapp@superlists.ml] out: Successfully installed django-1.11
+gunicorn-19.7.1 pytz-2017.3
+
+[webapp@superlists.ml] run: echo 'DJANGO_DEBUG_FALSE=y' >> "$(echo .env)"
+[webapp@superlists.ml] run: echo 'SITENAME=superlists.ottg.eu' >> "$(echo .env)"
+[webapp@superlists.ml] run: echo 'DJANGO_SECRET_KEY=[...]'
+[webapp@superlists.ml] run: ./virtualenv/bin/python manage.py
+collectstatic --noinput
+[webapp@superlists.ml] out: Copying
+'/home/webapp/sites/superlists.ml/lists/static/base.css'
+[...]
+[webapp@superlists.ml] out: 15 static files copied to
+'/home/webapp/sites/superlists.ml/static'.
+[webapp@superlists.ml] out:
+
+[webapp@superlists.ml] run: ./virtualenv/bin/python manage.py migrate
+[...]
+[webapp@superlists.ml] out: Operations to perform:
+[webapp@superlists.ml] out:   Apply all migrations: auth, contenttypes,
+lists, sessions
+[webapp@superlists.ml] out: Running migrations:
+[webapp@superlists.ml] out:   Applying contenttypes.0001_initial... OK
+[webapp@superlists.ml] out:   Applying
+contenttypes.0002_remove_content_type_name... OK
+[webapp@superlists.ml] out:   Applying auth.0001_initial... OK
+[webapp@superlists.ml] out:   Applying
+auth.0002_alter_permission_name_max_length... OK
+[...]
+[webapp@superlists.ml] out:   Applying lists.0004_item_list... OK
+[webapp@superlists.ml] out:   Applying sessions.0001_initial... OK
+[webapp@superlists.ml] out:
+
+
+Done.
+Disconnecting from webapp@superlists.ml... done.
+```
+
+다른 경로(~/sites/superlists.ml) 로 잘 배포가 되는 것을 볼 수 있다.
+
+장에서 언급한 배포 절차를 반복 실행이 가능함을 확인한 것이다.
+
