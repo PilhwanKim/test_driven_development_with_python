@@ -76,3 +76,55 @@ TDD 의 문제가 되는 이유중 하나 코드 구조가 나빠지는 경향�
 케이스 2) 아직 변경 코드가 많이 남아있고 신규 FT는 fail 상태라면 기존 동작상태가 보장되지 않는다. 이때 리팩터링은 위험하다. 따라서 작업목록에 기록해두고 동작상태가 모두 통과 될때까지 기다린후 리팩터링 한다.
 
 (결론)동작상태가 모두 통과되는 상태(all green)에서 리팩터링을 시도해야 한다.
+
+### 기능 테스트를 여러 파일로 분할하기(예제 : [11-02](./11-02))
+
+일단 먼저 각 테스트를 개별 클래스로 나누자.
+
+#### [/functional_tests/tests.py](./11-02/superlists/functional_tests/tests.py)
+
+```py
+class FunctionalTest(StaticLiveServerTestCase):
+
+    def setUp(self):
+        [...]
+    def tearDown(self):
+        [...]
+    def wait_for_row_in_list_table(self, row_text):
+        [...]
+
+
+class NewVisitorTest(FunctionalTest):
+
+    def test_can_start_a_list_for_one_user(self):
+        [...]
+    def test_multiple_users_can_start_lists_at_different_urls(self):
+        [...]
+
+
+class LayoutAndStylingTest(FunctionalTest):
+
+    def test_layout_and_styling(self):
+        [...]
+
+
+
+class ItemValidationTest(FunctionalTest):
+
+    @skip
+    def test_cannot_add_empty_list_items(self):
+        [...]
+```
+
+바뀐 FT를 실행해보자.
+
+```sh
+$ python manage.py test functional_tests
+Ran 3 tests in 23.579s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+한 단계씩 착실히 진행하는 것이 복잡한 작업을 수월하게 만든다.
+
