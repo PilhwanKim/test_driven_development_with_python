@@ -213,3 +213,67 @@ Destroying test database for alias 'default'...
 ```
 
 정상동작되었고 리팩토링이 완료되었다.
+
+### 개별 테스트 파일 실행
+
+이제는 테스트 파일을 개별적으로 실행 가능하다.
+
+```sh
+$ python manage.py test functional_tests.test_list_item_validation
+Ran 1 test in 2.526s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+특정 테스트에만 관심이 있다면 필요없는 다른 테스트를 기다릴 필요 없이 이렇게 히면 된다.
+
+### FT 에 살 붙이기(예제 : [11-04](./11-04))
+
+이제 신규 유효성 테스트를 작성한다.
+
+[/functional_tests/test_list_item_validation.py](./11-04/superlists/functional_tests/test_list_item_validation.py)
+
+```py
+class ItemValidationTest(FunctionalTest):
+    @skip
+    def test_cannot_add_empty_list_items(self):
+        # 에디스는 메인 페이지에 접속해서 빈 아이템을 실수로 등록하려고 한다.
+        # 입력 상자가 비어있는 상태에서 엔터키를 누른다.
+        self.browser.get(self.live_server_url)
+        self.browser.find_element_by_id('id_new_item').send_keys(Keys.ENTER)
+
+        # 페이지가 새로 고침되고, 빈 아이템을 등록할 수 없다는 
+        # 에러 메시지가 표시된다
+        self.assertEqual(
+            self.browser.find_element_by_css_selector('.has-error').text,  
+            "빈 아이템을 등록할 수 없습니다"  
+        )
+
+        # 다른 아이템을 입력하고 이번에는 정상 처리된다
+        self.browser.find_element_by_id('id_new_item').send_keys('우유 사기')
+        self.browser.find_element_by_id('id_new_item').send_keys(Keys.ENTER)
+        self.check_for_row_in_list_table('1: 우유 사기')
+
+        # 그녀는 고의적으로 다시 빈 아이템을 등록한다.
+        self.browser.find_element_by_id('id_new_item').send_keys(Keys.ENTER)
+
+        # 리스트 페이지에 다시 에러 메시지가 표시된다
+        self.check_for_row_in_list_table('1: 우유 사기')
+        self.assertEqual(
+            self.browser.find_element_by_css_selector('.has-error').text,  
+            "빈 아이템을 등록할 수 없습니다"  
+        )
+
+        # 아이템을 입력하면 정상 동작한다
+        ​self.browser.find_element_by_id('id_new_item').send_keys('tea 만들기')
+        ​self.browser.find_element_by_id('id_new_item').send_keys(Keys.ENTER)
+        self.check_for_row_in_list_table('1: 우유 사기')
+        ​self.check_for_row_in_list_table('2: tea 만들기')
+
+```
+
+- 부트스트랩 css class 인 `.has-error` 를 사용해서 에러 텍스트를 표시한다.
+- 작업 아이템 등록이 동작하는지 확인하기 위해 `check_for_row_in_list_table` 헬퍼 함수를 재사용한다.
+
+FT 결과를 확인해보자.
