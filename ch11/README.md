@@ -277,3 +277,71 @@ class ItemValidationTest(FunctionalTest):
 - 작업 아이템 등록이 동작하는지 확인하기 위해 `check_for_row_in_list_table` 헬퍼 함수를 재사용한다.
 
 FT 결과를 확인해보자.
+
+### 단위 테스트를 여러개 파일로 리팩터링 하기(예제 : [11-05](./11-05))
+
+모델을 위한 신규 테스트를 추가하기 전에, 단위 테스트를 기능 테스트와 비슷한 형태로 정리하려고 한다.
+테스트를 아예 별도의 디렉토리로 이동한다.
+
+```sh
+$ mkdir lists/tests
+$ touch lists/tests/__init__.py
+$ git mv lists/tests.py lists/tests/test_all.py
+$ git status
+$ git add lists/tests
+$ python manage.py test lists
+[...]
+Ran 10 tests in 0.034s
+
+OK
+$ git commit -m "Move unit tests into a folder with single file"
+```
+
+이제 `tests_all.py` 를 두 파일로 만든다. 
+
+- `test_view.py` 뷰 테스트 전용
+- `test_models.py` 모델 전용
+
+```sh
+$ git mv lists/tests/test_all.py lists/tests/test_views.py
+$ cp lists/tests/test_views.py lists/tests/test_models.py
+```
+
+각 파일에 필요한 테스트만 정리하자.
+
+[/lists/tests/test_models.py](./11-05/superlists/lists/tests/test_models.py)
+```py
+from django.test import TestCase
+from lists.models import Item, List
+
+
+class ListAndItemModelsTest(TestCase):
+        [...]
+```
+
+[/lists/tests/test_models.py](./11-05/superlists/lists/tests/test_views.py)
+
+```py
+--- a/lists/tests/test_views.py
++++ b/lists/tests/test_views.py
+@@ -103,34 +104,3 @@ class ListViewTest(TestCase):
+         self.assertNotContains(response, 'other list item 1')
+         self.assertNotContains(response, 'other list item 2')
+
+-
+-
+-class ListAndItemModelsTest(TestCase):
+-
+-    def test_saving_and_retrieving_items(self):
+[...]
+```
+
+태스트를 실행해서 정상 동작하는지 확인한다.
+
+```sh
+$ python manage.py test lists
+[...]
+Ran 9 tests in 0.040s
+
+OK
+```
