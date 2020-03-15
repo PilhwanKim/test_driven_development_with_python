@@ -77,11 +77,11 @@ TDD 의 문제가 되는 이유중 하나 코드 구조가 나빠지는 경향�
 
 (결론)동작상태가 모두 통과되는 상태(all green)에서 리팩터링을 시도해야 한다.
 
-### 기능 테스트를 여러 파일로 분할하기(예제 : [11-02](./11-02))
+### 기능 테스트를 여러 파일로 분할하기
 
-일단 먼저 각 테스트를 개별 클래스로 나누자.
+#### 각 테스트를 개별 클래스로 나누기(예제 : [11-02](./11-02))
 
-#### [/functional_tests/tests.py](./11-02/superlists/functional_tests/tests.py)
+##### [/functional_tests/tests.py](./11-02/superlists/functional_tests/tests.py)
 
 ```py
 class FunctionalTest(StaticLiveServerTestCase):
@@ -128,3 +128,88 @@ Destroying test database for alias 'default'...
 
 한 단계씩 착실히 진행하는 것이 복잡한 작업을 수월하게 만든다.
 
+#### 하나의 파일에 하나의 클래스가 담도록 나누기(예제 : [11-03](./11-03))
+
+아래과 같이 원래 파일을 복사한다. 하나의 base 파일을 만들어 나머지 다른 파일들이 이 파일을 상속하게 한다.
+
+```sh
+$ git mv functional_tests/tests.py functional_tests/base.py
+$ cp functional_tests/base.py functional_tests/test_simple_list_creation.py
+$ cp functional_tests/base.py functional_tests/test_layout_and_styling.py
+$ cp functional_tests/base.py functional_tests/test_list_item_validation.py
+```
+
+[/functional_tests/base.py](./11-03/superlists/functional_tests/base.py)
+
+```py
+import os
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from selenium import webdriver
+from selenium.common.exceptions import WebDriverException
+
+
+class FunctionalTest(StaticLiveServerTestCase):
+
+    def setUp(self):
+        [...]
+    def tearDown(self):
+        [...]
+    def wait_for_row_in_list_table(self, row_text):
+        [...]
+```
+
+[/functional_tests/test_simple_list_creation.py](./11-03/superlists/functional_tests/test_simple_list_creation.py)
+
+```py
+from .base import FunctionalTest
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+
+
+class NewVisitorTest(FunctionalTest):
+
+    def test_can_start_a_list_for_one_user(self):
+        [...]
+    def test_multiple_users_can_start_lists_at_different_urls(self):
+        [...]
+```
+
+[/functional_tests/test_layout_and_styling.py](./11-03/superlists/functional_tests/test_layout_and_styling.py)
+
+```py
+from selenium.webdriver.common.keys import Keys
+from .base import FunctionalTest
+
+
+class LayoutAndStylingTest(FunctionalTest):
+        [...]
+```
+
+[/functional_tests/test_list_item_validation.py](./11-03/superlists/functional_tests/test_list_item_validation.py)
+
+```py
+from selenium.webdriver.common.keys import Keys
+from unittest import skip
+from .base import FunctionalTest
+
+
+class ItemValidationTest(FunctionalTest):
+
+    @skip
+    def test_cannot_add_empty_list_items(self):
+        [...]
+```
+
+리팩토링이 끝났으면 functional_tests 를 실행해보자.
+
+
+```sh
+$ python manage.py test functional_tests
+[...]
+Ran 3 tests in 20.790s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+정상동작되었고 리팩토링이 완료되었다.
